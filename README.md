@@ -95,3 +95,7 @@ Een webhook kan worden ingesteld om bijv. berichten naar Teams te sturen als het
   - Houden we de correlatie bij in een database?
   - Kunnen we iets met het secret ID?
 - Welke naamgeving hanteren we voor de secrets? Moeten we die configureerbaar maken of is dat optioneel?
+- Hoe groot is het probleem als Open ID Connect mogelijk wordt
+- Wat zijn de use cases?
+  - User authentication for apps
+  - AzDo Service Connection
