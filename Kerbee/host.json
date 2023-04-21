@@ -1,0 +1,26 @@
+{
+  "version": "2.0",
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "excludedTypes": "Request;Exception",
+        "isEnabled": true
+      }
+    },
+    "logLevel": {
+      "Kerbee": "Warning"
+    }
+  },
+  "extensions": {
+    "durableTask": {
+      "extendedSessionsEnabled": true,
+      "extendedSessionIdleTimeoutInSeconds": 120
+    },
+    "http": {
+      "routePrefix": "",
+      "customHeaders": {
+        "Cache-Control": "no-store"
+      }
+    }
+  }
+}
