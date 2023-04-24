@@ -1,98 +1,70 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Threading.Tasks;
 
+using Azure.Core;
 using Azure.WebJobs.Extensions.HttpApi;
-
-using DurableTask.TypedProxy;
-
-using Kerbee.Models;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Identity.Client;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Microsoft.IdentityModel.Protocols;
-
-using Newtonsoft.Json;
-using System.Linq;
+using Microsoft.Graph;
 
 namespace Kerbee.Functions;
 
 public class GetServicePrincipals : HttpFunctionBase
 {
-    public GetServicePrincipals(IHttpContextAccessor httpContextAccessor)
+    private ILogger<GetServicePrincipals> _logger;
+
+    public GetServicePrincipals(IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory)
         : base(httpContextAccessor)
     {
+        _logger = loggerFactory.CreateLogger<GetServicePrincipals>();
     }
 
     [FunctionName($"{nameof(GetServicePrincipals)}_{nameof(HttpStart)}")]
     public async Task<IActionResult> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/serviceprincipals")] HttpRequest req,
-        ILogger log)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/serviceprincipals")] HttpRequest req)
     {
         if (!User.Identity.IsAuthenticated)
         {
             return Unauthorized();
         }
 
-        string tenantId = Environment.GetEnvironmentVariable("WEBSITE_AUTH_OPENID_ISSUER").Split("/", StringSplitOptions.RemoveEmptyEntries).Last();
-        string clientId = Environment.GetEnvironmentVariable("WEBSITE_AUTH_CLIENT_ID");
-        string clientSecret = Environment.GetEnvironmentVariable("WEBSITE_AUTH_CLIENT_SECRET");
-        string[] downstreamApiScopes = { "https://graph.microsoft.com/.default" };
+        if (!req.Headers.TryGetValue("x-ms-token-aad-access-token", out var accessTokenValues))
+        {
+            return Unauthorized();
+        }
 
         try
         {
-            if (string.IsNullOrEmpty(tenantId) ||
-            string.IsNullOrEmpty(clientId) ||
-            string.IsNullOrEmpty(clientSecret))
-            {
-                throw new Exception("Configuration values are missing.");
-            }
+            var accessToken = accessTokenValues.First();
 
-            string authority = $"https://login.microsoftonline.com/{tenantId}";
-            string issuer = Environment.GetEnvironmentVariable("WEBSITE_AUTH_OPENID_ISSUER");
-            string audience = $"api://{clientId}";
+            _logger.LogInformation("Access token: {accessToken}", accessToken);
 
-            var app = ConfidentialClientApplicationBuilder.Create(clientId)
-               .WithAuthority(authority)
-               .WithClientSecret(clientSecret)
-               .Build();
+            var issuer = new Uri(Environment.GetEnvironmentVariable("WEBSITE_AUTH_OPENID_ISSUER"));
+            var tenantId = issuer.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries).First();
+            var clientId = Environment.GetEnvironmentVariable("WEBSITE_AUTH_CLIENT_ID");
+            var clientSecret = Environment.GetEnvironmentVariable("MICROSOFT_PROVIDER_AUTHENTICATION_SECRET");
 
-            var headers = req.Headers;
-            var token = string.Empty;
-            if (headers.TryGetValue("Authorization", out var authHeader))
-            {
-                if (authHeader[0].StartsWith("Bearer "))
+            _logger.LogInformation("Issuer: {issuer}, tenantId: {tenantId}, clientId: {clientId}, clientSecret: {clientSecret}", issuer, tenantId, clientId, clientSecret);
+
+            var client = new GraphServiceClient(DelegatedTokenCredential.Create(
+                (_, _) =>
                 {
-                    token = authHeader[0].Substring(7, authHeader[0].Length - 7);
-                }
-                else
-                {
-                    return new UnauthorizedResult();
-                }
-            }
+                    return new AccessToken(accessToken, DateTime.UtcNow.AddDays(1));
+                }));
+            var applications = await client.Applications.GetAsync();
 
-            UserAssertion userAssertion = new UserAssertion(token);
-            AuthenticationResult result = await app.AcquireTokenOnBehalfOf(downstreamApiScopes, userAssertion).ExecuteAsync();
-
-            string accessToken = result.AccessToken;
-            if (accessToken == null)
-            {
-                throw new Exception("Access Token could not be acquired.");
-            }
-
-            var myObj = new { access_token = accessToken };
-            var jsonToReturn = JsonConvert.SerializeObject(myObj);
-            return new OkObjectResult(jsonToReturn);
+            return new OkObjectResult(applications);
         }
         catch (Exception ex)
         {
-            return new BadRequestObjectResult(ex.Message);
+            _logger.LogError(ex, "An unexception error occurred");
+            throw;
         }
     }
 }

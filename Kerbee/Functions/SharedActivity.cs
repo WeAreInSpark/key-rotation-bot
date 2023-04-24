@@ -42,11 +42,6 @@ public class SharedActivity : ISharedActivity
 
         await foreach (var certificate in certificates)
         {
-            if (!certificate.IsKerbeeManaged(IssuerName, _options.Endpoint))
-            {
-                continue;
-            }
-
             if ((certificate.ExpiresOn.Value - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
             {
                 continue;
@@ -68,8 +63,6 @@ public class SharedActivity : ISharedActivity
         await foreach (var certificate in certificates)
         {
             var certificateItem = (await _certificateClient.GetCertificateAsync(certificate.Name)).Value.ToCertificateItem();
-
-            certificateItem.IsManaged = certificate.IsKerbeeManaged(IssuerName, _options.Endpoint);
 
             result.Add(certificateItem);
         }
