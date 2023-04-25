@@ -4,6 +4,8 @@ namespace Kerbee.Options;
 
 public class KerbeeOptions
 {
+    public const string Kerbee = "Kerbee";
+
     [Required]
     public string VaultBaseUrl { get; set; }
 

@@ -17,6 +17,7 @@
     <PackageReference Include="Microsoft.Identity.Web" Version="2.9.0" />
     <PackageReference Include="Microsoft.Identity.Web.MicrosoftGraph" Version="2.9.0" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.1.3" />
+    <PackageReference Include="OneOf" Version="3.0.243" />
     <PackageReference Include="WebJobs.Extensions.HttpApi" Version="2.0.3" />
   </ItemGroup>
   <ItemGroup>

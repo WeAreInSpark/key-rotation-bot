@@ -1,22 +1,22 @@
 ﻿using System;
-using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
 
+using Kerbee.Graph;
 using Kerbee.Internal;
 using Kerbee.Options;
 
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using Microsoft.Graph;
-using Microsoft.Identity.Web;
 
 [assembly: FunctionsStartup(typeof(Kerbee.Startup))]
 
@@ -30,8 +30,16 @@ public class Startup : FunctionsStartup
 
         // Add Options
         builder.Services.AddOptions<KerbeeOptions>()
-               .Bind(context.Configuration.GetSection("Kerbee"))
+               .Bind(context.Configuration.GetSection(KerbeeOptions.Kerbee))
                .ValidateDataAnnotations();
+
+        builder.Services.AddOptions<AzureAdOptions>()
+                .Bind(context.Configuration)
+                .ValidateDataAnnotations();
+
+        builder.Services.AddOptions<ManagedIdentityOptions>()
+                .Bind(context.Configuration)
+                .ValidateDataAnnotations();
 
         // Add Services
         builder.Services.Replace(ServiceDescriptor.Transient(typeof(IOptionsFactory<>), typeof(OptionsFactory<>)));
@@ -74,6 +82,9 @@ public class Startup : FunctionsStartup
         });
 
         builder.Services.AddSingleton<WebhookInvoker>();
-        builder.Services.AddSingleton<ILifeCycleNotificationHelper, WebhookLifeCycleNotification>();
+        builder.Services.AddSingleton<Microsoft.Azure.WebJobs.Extensions.DurableTask.ILifeCycleNotificationHelper, WebhookLifeCycleNotification>();
+
+        builder.Services.AddScoped<GraphClientService>();
+        builder.Services.AddScoped<IApplicationService, ApplicationService>();
     }
 }
