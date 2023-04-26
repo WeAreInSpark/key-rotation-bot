@@ -57,7 +57,7 @@ internal class ApplicationService : IApplicationService
         try
         {
             var client = _graphClientService.GetClientForManagedIdentity();
-
+            
             // Get the managed identity by app id
             var managedIdentities = await client
                 .ServicePrincipals
@@ -80,6 +80,36 @@ internal class ApplicationService : IApplicationService
                 {
                     x.QueryParameters.Select = new string[] { "id", "displayName" };
                 });
+
+            var application = response.Value.FirstOrDefault();
+
+            // Make sure the owned object is not null
+            if (application is null)
+            {
+                _logger.LogInformation("No owned applications found for managed identity {displayName}", managedIdentity.DisplayName);
+                return response.Value;
+            }
+
+            _logger.LogInformation("Found owned application {displayName} with id {objectId}", application.DisplayName, application.Id);
+
+            // Generate a new key for the application
+            var password = await client
+                .Applications[application.Id]
+                .AddPassword
+                .PostAsync(new()
+                {
+                     PasswordCredential = new()
+                     {
+                         DisplayName = "Foo",
+                         EndDateTime = DateTimeOffset.UtcNow.AddDays(90),
+                         StartDateTime = DateTimeOffset.UtcNow,
+                         //Hint = "Bar",
+                         //KeyId = Guid.NewGuid(),
+                         //SecretText = "Bar",
+                     }
+                });
+
+            _logger.LogInformation("Generated new password for application {displayName}: {password}", application.DisplayName, password.SecretText);
 
             return response.Value;
         }
