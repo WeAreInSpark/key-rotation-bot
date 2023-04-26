@@ -9,7 +9,6 @@ using Kerbee.Options;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Graph.Drives.Item.Items.Item.Workbook.Functions.Rank_Avg;
 using Microsoft.Graph.Models;
 
 using OneOf;
@@ -57,14 +56,15 @@ internal class ApplicationService : IApplicationService
         try
         {
             var client = _graphClientService.GetClientForManagedIdentity();
-            
+
             // Get the managed identity by app id
             var managedIdentities = await client
                 .ServicePrincipals
-                .GetAsync(x => {
-                    x.QueryParameters.Filter = $"appId eq '{_managedIdentityOptions.ClientId}'";
-                    x.QueryParameters.Select = new string[] { "id", "displayName" };
-                });
+                .GetAsync(x =>
+                    {
+                        x.QueryParameters.Filter = $"appId eq '{_managedIdentityOptions.ClientId}'";
+                        x.QueryParameters.Select = new string[] { "id", "displayName" };
+                    });
 
             var managedIdentity = managedIdentities.Value.FirstOrDefault()
                 ?? throw new Exception("Managed identity not found");
@@ -98,15 +98,12 @@ internal class ApplicationService : IApplicationService
                 .AddPassword
                 .PostAsync(new()
                 {
-                     PasswordCredential = new()
-                     {
-                         DisplayName = "Foo",
-                         EndDateTime = DateTimeOffset.UtcNow.AddDays(90),
-                         StartDateTime = DateTimeOffset.UtcNow,
-                         //Hint = "Bar",
-                         //KeyId = Guid.NewGuid(),
-                         //SecretText = "Bar",
-                     }
+                    PasswordCredential = new()
+                    {
+                        DisplayName = $"Foo {DateTime.UtcNow}",
+                        EndDateTime = DateTimeOffset.UtcNow.AddDays(90),
+                        StartDateTime = DateTimeOffset.UtcNow,
+                    }
                 });
 
             _logger.LogInformation("Generated new password for application {displayName}: {password}", application.DisplayName, password.SecretText);
