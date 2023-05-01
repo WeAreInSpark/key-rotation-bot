@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 using Azure.Core;
 using Azure.Identity;
@@ -12,50 +10,48 @@ using Kerbee.Internal;
 using Kerbee.Options;
 
 using Microsoft.ApplicationInsights.Extensibility;
-using Microsoft.Azure.Functions.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
-[assembly: FunctionsStartup(typeof(Kerbee.Startup))]
-
-namespace Kerbee;
-
-public class Startup : FunctionsStartup
-{
-    public override void Configure(IFunctionsHostBuilder builder)
+var host = new HostBuilder()
+    .ConfigureFunctionsWorkerDefaults(builder =>
     {
-        var context = builder.GetContext();
-
+        builder
+            .AddApplicationInsights()
+            .AddApplicationInsightsLogger();
+    })
+    .ConfigureServices((context, services) =>
+    {
         // Add Options
-        builder.Services.AddOptions<KerbeeOptions>()
+        services.AddOptions<KerbeeOptions>()
                .Bind(context.Configuration.GetSection(KerbeeOptions.Kerbee))
                .ValidateDataAnnotations();
 
-        builder.Services.AddOptions<AzureAdOptions>()
+        services.AddOptions<AzureAdOptions>()
                 .Bind(context.Configuration)
                 .ValidateDataAnnotations();
 
-        builder.Services.AddOptions<ManagedIdentityOptions>()
+        services.AddOptions<ManagedIdentityOptions>()
                 .Bind(context.Configuration)
                 .ValidateDataAnnotations();
 
         // Add Services
-        builder.Services.Replace(ServiceDescriptor.Transient(typeof(IOptionsFactory<>), typeof(OptionsFactory<>)));
+        services.AddHttpContextAccessor();
 
-        builder.Services.AddHttpClient();
+        services.AddHttpClient();
 
-        builder.Services.AddSingleton<ITelemetryInitializer, ApplicationVersionInitializer<Startup>>();
+        services.AddSingleton<ITelemetryInitializer, ApplicationVersionInitializer<Program>>();
 
-        builder.Services.AddSingleton(provider =>
+        services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
 
             return AzureEnvironment.Get(options.Value.Environment);
         });
 
-        builder.Services.AddSingleton<TokenCredential>(provider =>
+        services.AddSingleton<TokenCredential>(provider =>
         {
             var environment = provider.GetRequiredService<AzureEnvironment>();
 
@@ -65,7 +61,7 @@ public class Startup : FunctionsStartup
             });
         });
 
-        builder.Services.AddSingleton(provider =>
+        services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
             var credential = provider.GetRequiredService<TokenCredential>();
@@ -73,7 +69,7 @@ public class Startup : FunctionsStartup
             return new CertificateClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 
-        builder.Services.AddSingleton(provider =>
+        services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
             var credential = provider.GetRequiredService<TokenCredential>();
@@ -81,10 +77,12 @@ public class Startup : FunctionsStartup
             return new SecretClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 
-        builder.Services.AddSingleton<WebhookInvoker>();
-        builder.Services.AddSingleton<Microsoft.Azure.WebJobs.Extensions.DurableTask.ILifeCycleNotificationHelper, WebhookLifeCycleNotification>();
+        services.AddSingleton<WebhookInvoker>();
+        services.AddSingleton<ILifecycleNotificationHelper, WebhookLifeCycleNotification>();
 
-        builder.Services.AddScoped<GraphClientService>();
-        builder.Services.AddScoped<IApplicationService, ApplicationService>();
-    }
-}
+        services.AddScoped<GraphClientService>();
+        services.AddScoped<IApplicationService, ApplicationService>();
+    })
+    .Build();
+
+await host.RunAsync();

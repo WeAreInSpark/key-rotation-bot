@@ -1,60 +1,60 @@
-﻿using System;
+﻿using System.Net;
 using System.Threading.Tasks;
-
-using Azure.WebJobs.Extensions.HttpApi;
-
-using DurableTask.TypedProxy;
 
 using Kerbee.Internal;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.DurableTask;
+using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
-public class RevokeCertificate : HttpFunctionBase
+public class RevokeCertificate
 {
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private ILogger<RevokeCertificate> _log;
+
     public RevokeCertificate(IHttpContextAccessor httpContextAccessor)
-        : base(httpContextAccessor)
     {
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    [FunctionName($"{nameof(RevokeCertificate)}_{nameof(Orchestrator)}")]
-    public async Task Orchestrator([OrchestrationTrigger] IDurableOrchestrationContext context, ILogger log)
+    [Function($"{nameof(RevokeCertificate)}_{nameof(Orchestrator)}")]
+    public Task Orchestrator([OrchestrationTrigger] TaskOrchestrationContext context, ILogger<RevokeCertificate> log)
     {
+        _log = log;
         var certificateName = context.GetInput<string>();
 
-        var activity = context.CreateActivityProxy<ISharedActivity>();
+        // Todo: revoke certificate
+        //await activity.RevokeCertificate(certificateName);
 
-        await activity.RevokeCertificate(certificateName);
+        return Task.CompletedTask;
     }
 
-    [FunctionName($"{nameof(RevokeCertificate)}_{nameof(HttpStart)}")]
-    public async Task<IActionResult> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/certificate/{certificateName}/revoke")] HttpRequest req,
+    [Function($"{nameof(RevokeCertificate)}_{nameof(HttpStart)}")]
+    public async Task<HttpResponseData> HttpStart(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/certificate/{certificateName}/revoke")] HttpRequestData req,
         string certificateName,
-        [DurableClient] IDurableClient starter,
-        ILogger log)
+        [DurableClient] DurableTaskClient starter)
     {
-        if (!User.Identity.IsAuthenticated)
+        if (!_httpContextAccessor.HttpContext.User.Identity.IsAuthenticated)
         {
-            return Unauthorized();
+            return req.CreateResponse(HttpStatusCode.Unauthorized);
         }
 
-        if (!User.HasRevokeCertificateRole())
+        if (!_httpContextAccessor.HttpContext.User.HasRevokeCertificateRole())
         {
-            return Forbid();
+            return req.CreateResponse(HttpStatusCode.Forbidden);
         }
 
         // Function input comes from the request content.
-        var instanceId = await starter.StartNewAsync($"{nameof(RevokeCertificate)}_{nameof(Orchestrator)}", null, certificateName);
+        var instanceId = await starter.ScheduleNewOrchestrationInstanceAsync($"{nameof(RevokeCertificate)}_{nameof(Orchestrator)}", certificateName);
 
-        log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
+        _log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
 
-        return await starter.WaitForCompletionOrCreateCheckStatusResponseAsync(req, instanceId, TimeSpan.FromMinutes(1), returnInternalServerErrorOnFailure: true);
+        return starter.CreateCheckStatusResponse(req, instanceId);
     }
 }

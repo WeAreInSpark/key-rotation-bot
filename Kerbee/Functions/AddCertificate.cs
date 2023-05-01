@@ -1,53 +1,50 @@
-﻿using System.Threading.Tasks;
-
-using Azure.WebJobs.Extensions.HttpApi;
+﻿using System.Net;
+using System.Threading.Tasks;
 
 using Kerbee.Internal;
 using Kerbee.Models;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
-public class AddCertificate : HttpFunctionBase
+public class AddCertificate
 {
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
     public AddCertificate(IHttpContextAccessor httpContextAccessor)
-        : base(httpContextAccessor)
     {
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    [FunctionName($"{nameof(AddCertificate)}_{nameof(HttpStart)}")]
-    public async Task<IActionResult> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/certificate")] CertificatePolicyItem certificatePolicyItem,
-        [DurableClient] IDurableClient starter,
+    [Function($"{nameof(AddCertificate)}_{nameof(HttpStart)}")]
+    public async Task<HttpResponseData> HttpStart(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/certificate")] HttpRequestData req,
+        [DurableClient] DurableTaskClient starter,
         ILogger log)
     {
-        if (!User.Identity.IsAuthenticated)
+        if (!_httpContextAccessor.HttpContext.User.Identity.IsAuthenticated)
         {
-            return Unauthorized();
+            return req.CreateResponse(HttpStatusCode.Unauthorized);
         }
 
-        if (!User.HasIssueCertificateRole())
+        if (!!_httpContextAccessor.HttpContext.User.HasIssueCertificateRole())
         {
-            return Forbid();
+            return req.CreateResponse(HttpStatusCode.Forbidden);
         }
 
-        if (!TryValidateModel(certificatePolicyItem))
-        {
-            return ValidationProblem(ModelState);
-        }
-
+        var certificatePolicyItem = await req.ReadFromJsonAsync<CertificatePolicyItem>();
         if (string.IsNullOrEmpty(certificatePolicyItem.CertificateName))
         {
             certificatePolicyItem.CertificateName = certificatePolicyItem.DnsNames[0].Replace("*", "wildcard").Replace(".", "-");
         }
 
         // Function input comes from the request content.
-        return Ok();
+        return req.CreateResponse(HttpStatusCode.OK);
     }
 }

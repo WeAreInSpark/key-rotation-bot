@@ -1,10 +1,8 @@
 ﻿using System.Threading.Tasks;
 
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
-
 namespace Kerbee.Internal;
 
-internal class WebhookLifeCycleNotification : ILifeCycleNotificationHelper
+internal class WebhookLifeCycleNotification : ILifecycleNotificationHelper
 {
     public WebhookLifeCycleNotification(WebhookInvoker webhookInvoker)
     {

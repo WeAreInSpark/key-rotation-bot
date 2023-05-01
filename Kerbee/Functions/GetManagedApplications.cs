@@ -1,7 +1,5 @@
 ﻿using System.Threading.Tasks;
 
-using Azure.WebJobs.Extensions.HttpApi;
-
 using Kerbee.Graph;
 
 using Microsoft.AspNetCore.Http;
@@ -13,13 +11,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
-public class GetManagedApplications : HttpFunctionBase
+public class GetManagedApplications
 {
     private readonly ILogger<GetManagedApplications> _logger;
     private readonly IApplicationService _applicationService;
 
     public GetManagedApplications(IHttpContextAccessor httpContextAccessor, IApplicationService applicationService, ILoggerFactory loggerFactory, IConfiguration configuration)
-        : base(httpContextAccessor)
     {
         _logger = loggerFactory.CreateLogger<GetManagedApplications>();
         _applicationService = applicationService;
@@ -33,7 +30,7 @@ public class GetManagedApplications : HttpFunctionBase
 
         return result.Match<IActionResult>(
             apps => new OkObjectResult(apps),
-            unauthorized => Unauthorized(),
+            unauthorized => unauthorized,
             error => throw error.Value
         );
     }
