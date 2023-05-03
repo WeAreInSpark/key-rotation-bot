@@ -1,60 +1,45 @@
 ﻿using System;
-using System.Linq;
 using System.Security.Authentication;
 
 using Azure.Core;
 using Azure.Identity;
 
-using Kerbee.Options;
+using Kerbee.Internal;
 
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 
 namespace Kerbee.Graph;
 
 internal class GraphClientService
 {
-    private readonly AzureAdOptions _aadOptions;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger _logger;
+    private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
 
-    public GraphClientService(IOptionsSnapshot<AzureAdOptions> aadOptions, IHttpContextAccessor httpContextAccessor, ILoggerFactory loggerFactory)
+    public GraphClientService(IClaimsPrincipalAccessor claimsPrincipalAccessor, ILoggerFactory loggerFactory)
     {
-        _aadOptions = aadOptions.Value;
-        _httpContextAccessor = httpContextAccessor;
         _logger = loggerFactory.CreateLogger<GraphClientService>();
+        _claimsPrincipalAccessor = claimsPrincipalAccessor;
     }
 
     public GraphServiceClient GetClientForUser()
     {
-        var context = _httpContextAccessor.HttpContext;
-
-        if (!context.User.Identity.IsAuthenticated)
+        if (_claimsPrincipalAccessor.Principal?.Identity?.IsAuthenticated != true)
         {
             throw new AuthenticationException();
         }
 
-        if (!context.Request.Headers.TryGetValue("x-ms-token-aad-access-token", out var accessTokenValues))
+        if (_claimsPrincipalAccessor.AccessToken is null)
         {
             throw new AuthenticationException();
         }
 
-        var accessToken = accessTokenValues.First();
-
-        _logger.LogInformation("Access token: {accessToken}", accessToken);
-
-        _logger.LogInformation("Issuer: {issuer}, tenantId: {tenantId}, clientId: {clientId}, clientSecret: {clientSecret}",
-            _aadOptions.Issuer,
-            _aadOptions.TenantId,
-            _aadOptions.ClientId,
-            _aadOptions.ClientSecret);
+        _logger.LogInformation("Access token: {accessToken}", _claimsPrincipalAccessor.AccessToken);
 
         return new GraphServiceClient(DelegatedTokenCredential.Create(
             (_, _) =>
             {
-                return new AccessToken(accessToken, DateTime.UtcNow.AddDays(1));
+                return new AccessToken(_claimsPrincipalAccessor.AccessToken, DateTime.UtcNow.AddDays(1));
             }));
     }
 

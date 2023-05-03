@@ -13,7 +13,7 @@ using Microsoft.Extensions.FileProviders;
 
 namespace Kerbee.Internal;
 
-internal static class HttpRequestDataExtensions
+internal static class StaticAppExtensions
 {
     private const string DefaultContentType = "application/octet-stream";
 
@@ -22,7 +22,7 @@ internal static class HttpRequestDataExtensions
 
     public async static Task<HttpResponseData> CreateStaticAppResponse(this HttpRequestData req, string defaultFile = "index.html", string fallbackPath = "404.html", string fallbackExclude = null)
     {
-        var (_, value) = req.FunctionContext.BindingContext.BindingData.Single();
+        var (_, value) = req.FunctionContext.BindingContext.BindingData.FirstOrDefault(x => x.Key == "path");
 
         var virtualPath = $"/{value}";
 
@@ -37,7 +37,7 @@ internal static class HttpRequestDataExtensions
 
         var fileInfo = GetFileInformation(virtualPath, fallbackPath, fallbackExclude);
 
-        if (!fileInfo.Exists)
+        if (!fileInfo.Exists || fileInfo.PhysicalPath is null)
         {
             response.StatusCode = HttpStatusCode.NotFound;
 
@@ -59,7 +59,7 @@ internal static class HttpRequestDataExtensions
     {
         response.Headers.Add(HttpHeader.Names.ContentType, s_contentTypeProvider.TryGetContentType(fileInfo.Name, out var contentType) ? contentType : DefaultContentType);
         response.Headers.Add(HttpHeader.Names.ContentLength, fileInfo.Length.ToString());
-        response.Headers.Add("Last-Modified", fileInfo.LastModified.ToString());
+        response.Headers.Add("Last-Modified", fileInfo.LastModified.ToString("r"));
     }
 
     private static IFileInfo GetFileInformation(string virtualPath, string fallbackPath, string fallbackExclude)

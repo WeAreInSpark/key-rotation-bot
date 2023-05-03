@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using Azure.Core;
 using Azure.Identity;
@@ -20,7 +22,8 @@ var host = new HostBuilder()
     {
         builder
             .AddApplicationInsights()
-            .AddApplicationInsightsLogger();
+            .AddApplicationInsightsLogger()
+            .UseMiddleware<ClaimsPrincipalMiddleware>();
     })
     .ConfigureServices((context, services) =>
     {
@@ -38,7 +41,14 @@ var host = new HostBuilder()
                 .ValidateDataAnnotations();
 
         // Add Services
-        services.AddHttpContextAccessor();
+        services.Configure<JsonSerializerOptions>(options =>
+        {
+            options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+            options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            options.Converters.Add(new JsonStringEnumConverter());
+        });
+
+        services.AddSingleton<IClaimsPrincipalAccessor, ClaimsPrincipalAccessor>();
 
         services.AddHttpClient();
 

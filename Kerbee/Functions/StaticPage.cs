@@ -4,29 +4,25 @@ using System.Threading.Tasks;
 
 using Kerbee.Internal;
 
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
 public class StaticPage
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
 
-    public StaticPage(IHttpContextAccessor httpContextAccessor)
+    public StaticPage(IClaimsPrincipalAccessor claimsPrincipalAccessor)
     {
-        _httpContextAccessor = httpContextAccessor;
+        _claimsPrincipalAccessor = claimsPrincipalAccessor;
     }
 
     [Function($"{nameof(StaticPage)}_{nameof(Serve)}")]
     public async Task<HttpResponseData> Serve(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "{*path}")] HttpRequestData req,
-        ILogger log)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "{*path}")] HttpRequestData req)
     {
-        if (!IsEasyAuthEnabled || !_httpContextAccessor.HttpContext.User.Identity.IsAuthenticated)
+        if (!IsEasyAuthEnabled || _claimsPrincipalAccessor.Principal?.Identity?.IsAuthenticated != true)
         {
             return req.CreateResponse(HttpStatusCode.Unauthorized);
         }
