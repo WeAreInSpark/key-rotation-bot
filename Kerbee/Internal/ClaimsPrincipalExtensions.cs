@@ -15,21 +15,21 @@ public static class ClaimsPrincipalExtensions
     private class ClientPrincipalClaim
     {
         [JsonPropertyName("typ")]
-        public string Type { get; set; }
+        public string Type { get; set; } = null!;
         [JsonPropertyName("val")]
-        public string Value { get; set; }
+        public string Value { get; set; } = null!;
     }
 
     private class ClientPrincipal
     {
         [JsonPropertyName("auth_typ")]
-        public string IdentityProvider { get; set; }
+        public string IdentityProvider { get; set; } = null!;
         [JsonPropertyName("name_typ")]
-        public string NameClaimType { get; set; }
+        public string NameClaimType { get; set; } = null!;
         [JsonPropertyName("role_typ")]
-        public string RoleClaimType { get; set; }
+        public string RoleClaimType { get; set; } = null!;
         [JsonPropertyName("claims")]
-        public IEnumerable<ClientPrincipalClaim> Claims { get; set; }
+        public IEnumerable<ClientPrincipalClaim> Claims { get; set; } = Array.Empty<ClientPrincipalClaim>();
     }
 
     /// <summary>
@@ -37,17 +37,19 @@ public static class ClaimsPrincipalExtensions
     /// </summary>
     /// <param name="req">The HttpRequestData header.</param>
     /// <returns>Parsed ClaimsPrincipal from 'x-ms-client-principal' header.</returns>
-    public static ClaimsPrincipal ParsePrincipal(this HttpRequestData req)
+    public static ClaimsPrincipal? ParsePrincipal(this HttpRequestData req)
     {
         var principal = new ClientPrincipal();
 
-        if (req.Headers.TryGetValues("x-ms-client-principal", out var header))
+        if (!req.Headers.TryGetValues("x-ms-client-principal", out var header))
         {
-            var data = header.First();
-            var decoded = Convert.FromBase64String(data);
-            var json = Encoding.UTF8.GetString(decoded);
-            principal = JsonSerializer.Deserialize<ClientPrincipal>(json)!;
+            return null;
         }
+
+        var data = header.First();
+        var decoded = Convert.FromBase64String(data);
+        var json = Encoding.UTF8.GetString(decoded);
+        principal = JsonSerializer.Deserialize<ClientPrincipal>(json)!;
 
         var identity = new ClaimsIdentity(principal.IdentityProvider);
         identity.AddClaims(principal.Claims.Select(c => new Claim(c.Type, c.Value)));

@@ -1,10 +1,12 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net;
+using System.Threading.Tasks;
 
 using Kerbee.Graph;
+using Kerbee.Models;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -15,22 +17,32 @@ public class GetApplications
     private readonly ILogger<GetApplications> _logger;
     private readonly IApplicationService _applicationService;
 
-    public GetApplications(IHttpContextAccessor httpContextAccessor, IApplicationService applicationService, ILoggerFactory loggerFactory, IConfiguration configuration)
+    public GetApplications(IApplicationService applicationService, ILoggerFactory loggerFactory, IConfiguration configuration)
     {
         _logger = loggerFactory.CreateLogger<GetApplications>();
         _applicationService = applicationService;
     }
 
     [Function($"{nameof(GetApplications)}_{nameof(HttpStart)}")]
-    public async Task<IActionResult> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/applications")] HttpRequest req)
+    public async Task<HttpResponseData> HttpStart(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/applications")] HttpRequestData req)
     {
         var result = await _applicationService.GetApplicationsAsync();
 
-        return result.Match<IActionResult>(
-            apps => new OkObjectResult(apps),
-            unauthorized => unauthorized,
-            error => throw error.Value
+        var task = result.Match(
+            apps =>
+                Task.Run(async () =>
+                {
+                    var response = req.CreateResponse(HttpStatusCode.OK);
+                    await response.WriteAsJsonAsync(apps);
+                    return response;
+                }),
+            unauthorized =>
+                Task.FromResult(req.CreateResponse(HttpStatusCode.Unauthorized)),
+            error =>
+                throw error.Value
         );
+
+        return await task;
     }
 }

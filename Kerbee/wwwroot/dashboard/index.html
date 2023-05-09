@@ -82,15 +82,15 @@
             <section class="modal-card-body">
               <div class="field is-horizontal">
                 <div class="field-label is-normal">
-                  <label class="label">DNS Zone</label>
+                  <label class="label">Application</label>
                 </div>
                 <div class="field-body">
                   <div class="field">
-                    <div class="control">
-                      <div class="select" :class="{ 'is-loading': add.loading }">
-                        <select v-model="add.zoneName">
+                    <div class="control is-expanded">
+                      <div class="select is-fullwidth" :class="{ 'is-loading': add.loading }">
+                        <select v-model="add.application">
                           <option disabled value="">Please select one</option>
-                          <option v-for="zone in add.zones" :value="zone">{{ toUnicode(zone) }}</option>
+                          <option v-for="application in add.applications" :value="application">{{ application.displayName }}</option>
                         </select>
                       </div>
                     </div>
@@ -333,7 +333,7 @@
           add: {
             zones: [],
             zoneName: "",
-            dnsNames: [],
+            applications: [],
             recordName: "",
             useAdvancedOptions: false,
             applicationName: "",
@@ -357,7 +357,7 @@
           this.loading = true;
 
           try {
-            const response = await axios.get("/api/applications/managed");
+            const response = await axios.get("/api/applications");
 
             if (response.status === 200) {
               this.applications = response.data.sort((x, y) => x.expiresOn.localeCompare(y.expiresOn));
@@ -373,14 +373,14 @@
 
           await this.load();
         },
-        async loadDnsZones() {
+        async loadUnmanagedApplications() {
           this.add.loading = true;
 
           try {
-            const response = await axios.get("/api/dns-zones");
+            const response = await axios.get("/api/applications/unmanaged");
 
             if (response.status === 200) {
-              this.add.zones = response.data;
+              this.add.applications = response.data;
             }
           } catch (error) {
             this.handleHttpError(error);
@@ -388,12 +388,10 @@
 
           this.add.loading = false;
         },
-        addDnsName() {
-          if (this.add.zoneName === "") {
+        addApplication() {
+          if (this.add.application === null) {
             return;
           }
-
-          const dnsName = this.add.recordName === "" ? this.add.zoneName : punycode.toASCII(this.add.recordName) + "." + this.add.zoneName;
 
           if (this.add.dnsNames.indexOf(dnsName) === -1) {
             this.add.dnsNames.push(dnsName);
@@ -407,32 +405,8 @@
         async addApplication() {
           this.add.sending = true;
 
-          const postData = {
-            dnsNames: this.add.dnsNames,
-            applicationName: this.add.applicationName,
-            keyType: this.add.keyType,
-            reuseKey: this.add.reuseKey
-          };
-
-          if (this.add.keyType === "RSA") {
-            postData.keySize = this.add.keySize;
-          } else {
-            postData.keyCurveName = this.add.keyCurveName;
-          }
-
           try {
-            let response = await axios.post("/api/applications/managed", postData);
-
-            while (true) {
-              await delay(5000);
-
-              response = await axios.get(response.headers["location"]);
-
-              if (response.status === 200) {
-                alert("The key was successfully generated.");
-                break;
-              }
-            }
+            let response = await axios.post("/api/applications", this.add.application);
           } catch (error) {
             this.handleHttpError(error);
           }
@@ -445,7 +419,7 @@
         async openAdd() {
           this.add.modalActive = true;
 
-          await this.loadDnsZones();
+          await this.loadUnmanagedApplications();
         },
         openDetails(application) {
           this.details.application = application;
@@ -464,7 +438,7 @@
               response = await axios.get(response.headers["location"]);
 
               if (response.status === 200) {
-                alert("The application was successfully renewed.");
+                alert("The application key was successfully renewed.");
                 break;
               }
             }

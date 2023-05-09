@@ -7,14 +7,20 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
 
+using Bogus;
+
+using Kerbee;
 using Kerbee.Graph;
+using Kerbee.Graph.Fakes;
 using Kerbee.Internal;
+using Kerbee.Internal.Fakes;
 using Kerbee.Options;
 
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 var host = new HostBuilder()
@@ -22,15 +28,26 @@ var host = new HostBuilder()
     {
         builder
             .AddApplicationInsights()
-            .AddApplicationInsightsLogger()
-            .UseMiddleware<ClaimsPrincipalMiddleware>();
+            .AddApplicationInsightsLogger();
+
+        builder.UseWhen<ClaimsPrincipalMiddleware>(context =>
+        {
+            var options = context.InstanceServices.GetRequiredService<IOptions<DeveloperOptions>>();
+            return !options.Value.UseFakeAuth;
+        });
+
+        builder.UseWhen<FakeClaimsPrincipalMiddleware>(context =>
+        {
+            var options = context.InstanceServices.GetRequiredService<IOptions<DeveloperOptions>>();
+            return options.Value.UseFakeAuth;
+        });
     })
     .ConfigureServices((context, services) =>
     {
         // Add Options
         services.AddOptions<KerbeeOptions>()
-               .Bind(context.Configuration.GetSection(KerbeeOptions.Kerbee))
-               .ValidateDataAnnotations();
+                .Bind(context.Configuration.GetSection(KerbeeOptions.Kerbee))
+                .ValidateDataAnnotations();
 
         services.AddOptions<AzureAdOptions>()
                 .Bind(context.Configuration)
@@ -38,6 +55,10 @@ var host = new HostBuilder()
 
         services.AddOptions<ManagedIdentityOptions>()
                 .Bind(context.Configuration)
+                .ValidateDataAnnotations();
+
+        services.AddOptions<DeveloperOptions>()
+                .Bind(context.Configuration.GetSection(DeveloperOptions.Developer))
                 .ValidateDataAnnotations();
 
         // Add Services
@@ -91,7 +112,23 @@ var host = new HostBuilder()
         services.AddSingleton<ILifecycleNotificationHelper, WebhookLifeCycleNotification>();
 
         services.AddScoped<GraphClientService>();
-        services.AddScoped<IApplicationService, ApplicationService>();
+
+        services.AddScoped<IApplicationService>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<DeveloperOptions>>();
+
+            if (options.Value.UseFakeApi)
+            {
+                return new FakeApplicationService();
+            }
+            else
+            {
+                return new ApplicationService(
+                    provider.GetRequiredService<GraphClientService>(),
+                    provider.GetRequiredService<IOptionsSnapshot<ManagedIdentityOptions>>(),
+                    provider.GetRequiredService<ILoggerFactory>());
+            }
+        });
     })
     .Build();
 
