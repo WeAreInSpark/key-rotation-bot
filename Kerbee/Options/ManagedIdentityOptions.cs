@@ -1,6 +1,4 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
+﻿using System.ComponentModel.DataAnnotations;
 
 using Microsoft.Extensions.Configuration;
 
@@ -10,5 +8,5 @@ public class ManagedIdentityOptions
 {
     [Required]
     [ConfigurationKeyName("AZURE_CLIENT_ID")]
-    public string ClientId { get; set; }
+    public string ClientId { get; set; } = null!;
 }

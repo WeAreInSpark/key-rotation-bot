@@ -1,50 +1,50 @@
-﻿using System.Threading.Tasks;
-
-using Azure.WebJobs.Extensions.HttpApi;
+﻿using System.Net;
+using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.DurableTask.Client;
 
 namespace Kerbee.Functions;
 
-public class GetInstanceState : HttpFunctionBase
+public class GetInstanceState
 {
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
     public GetInstanceState(IHttpContextAccessor httpContextAccessor)
-        : base(httpContextAccessor)
     {
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    [FunctionName($"{nameof(GetInstanceState)}_{nameof(HttpStart)}")]
-    public async Task<IActionResult> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/state/{instanceId}")] HttpRequest req,
+    [Function($"{nameof(GetInstanceState)}_{nameof(HttpStart)}")]
+    public async Task<HttpResponseData> HttpStart(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/state/{instanceId}")] HttpRequestData req,
         string instanceId,
-        [DurableClient] IDurableClient starter)
+        [DurableClient] DurableTaskClient starter)
     {
-        if (!User.Identity.IsAuthenticated)
+        if (!_httpContextAccessor.HttpContext.User.Identity.IsAuthenticated)
         {
-            return Unauthorized();
+            return req.CreateResponse(HttpStatusCode.Unauthorized);
         }
 
-        var status = await starter.GetStatusAsync(instanceId);
+        var instance = await starter.GetInstanceAsync(instanceId);
 
-        if (status is null)
+        if (instance is null)
         {
-            return BadRequest();
+            return req.CreateResponse(HttpStatusCode.BadRequest);
         }
 
-        if (status.RuntimeStatus == OrchestrationRuntimeStatus.Failed)
+        if (instance.RuntimeStatus == OrchestrationRuntimeStatus.Failed)
         {
-            return Problem(status.Output.ToString());
+            return req.CreateResponse(HttpStatusCode.InternalServerError);
         }
 
-        if (status.RuntimeStatus is OrchestrationRuntimeStatus.Running or OrchestrationRuntimeStatus.Pending or OrchestrationRuntimeStatus.ContinuedAsNew)
+        if (instance.RuntimeStatus is OrchestrationRuntimeStatus.Running or OrchestrationRuntimeStatus.Pending)
         {
-            return AcceptedAtFunction($"{nameof(GetInstanceState)}_{nameof(HttpStart)}", new { instanceId }, null);
+            return starter.CreateCheckStatusResponse(req, instanceId);
         }
 
-        return Ok();
+        return req.CreateResponse(HttpStatusCode.OK);
     }
 }

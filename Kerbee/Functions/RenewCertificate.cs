@@ -1,45 +1,41 @@
-﻿using System.Threading.Tasks;
-
-using Azure.WebJobs.Extensions.HttpApi;
-
-using DurableTask.TypedProxy;
+﻿using System.Net;
 
 using Kerbee.Internal;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.DurableTask;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
-public class RenewCertificate : HttpFunctionBase
+public class RenewCertificate
 {
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
     public RenewCertificate(IHttpContextAccessor httpContextAccessor)
-        : base(httpContextAccessor)
     {
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    [FunctionName($"{nameof(RenewCertificate)}_{nameof(HttpStart)}")]
-    public async Task<IActionResult> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/certificate/{certificateName}/renew")] HttpRequest req,
+    [Function($"{nameof(RenewCertificate)}_{nameof(HttpStart)}")]
+    public HttpResponseData HttpStart(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/certificate/{certificateName}/renew")] HttpRequestData req,
         string certificateName,
-        [DurableClient] IDurableClient starter,
+        [DurableClient] DurableTaskClient starter,
         ILogger log)
     {
-        if (!User.Identity.IsAuthenticated)
+        if (!_httpContextAccessor.HttpContext.User.Identity.IsAuthenticated)
         {
-            return Unauthorized();
+            return req.CreateResponse(HttpStatusCode.Unauthorized);
         }
 
-        if (!User.HasIssueCertificateRole())
+        if (!_httpContextAccessor.HttpContext.User.HasIssueCertificateRole())
         {
-            return Forbid();
+            return req.CreateResponse(HttpStatusCode.Forbidden);
         }
 
-
-        return Ok();
+        return req.CreateResponse(HttpStatusCode.OK);
     }
 }

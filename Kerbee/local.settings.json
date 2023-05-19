@@ -1,0 +1,15 @@
+﻿{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AZURE_CLIENT_ID": "de47df86-e863-4da3-814d-6c580cd604f9",
+    "WEBSITE_AUTH_ENABLED": "True",
+    "WEBSITE_AUTH_OPENID_ISSUER": "https://sts.windows.net/cd004ec9-bc4b-4721-82df-cd3a2e134a09/v2.0",
+    "WEBSITE_AUTH_CLIENT_ID": "47032934-b160-4a98-a9c2-0b58bd891395",
+    "Kerbee:VaultBaseUrl": "https://kerbee-1866.vault.azure.net/",
+    "Developer:UseFakeApi": false,
+    "Developer:UseFakeAuth": true,
+    "RenewCertificates_Timer_Enabled": false
+  }
+}

@@ -1,33 +1,33 @@
 ﻿using System;
+using System.Net;
+using System.Threading.Tasks;
 
-using Azure.WebJobs.Extensions.HttpApi;
+using Kerbee.Internal;
 
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.Extensions.Logging;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Azure.Functions.Worker.Http;
 
 namespace Kerbee.Functions;
 
-public class StaticPage : HttpFunctionBase
+public class StaticPage
 {
-    public StaticPage(IHttpContextAccessor httpContextAccessor)
-        : base(httpContextAccessor)
+    private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
+
+    public StaticPage(IClaimsPrincipalAccessor claimsPrincipalAccessor)
     {
+        _claimsPrincipalAccessor = claimsPrincipalAccessor;
     }
 
-    [FunctionName($"{nameof(StaticPage)}_{nameof(Serve)}")]
-    public IActionResult Serve(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "{*path}")] HttpRequest req,
-        ILogger log)
+    [Function($"{nameof(StaticPage)}_{nameof(Serve)}")]
+    public async Task<HttpResponseData> Serve(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "{*path}")] HttpRequestData req)
     {
-        if (!IsEasyAuthEnabled || !User.Identity.IsAuthenticated)
+        if (!IsEasyAuthEnabled || _claimsPrincipalAccessor.Principal?.Identity?.IsAuthenticated != true)
         {
-            return Forbid();
+            return req.CreateResponse(HttpStatusCode.Unauthorized);
         }
 
-        return LocalStaticApp();
+        return await req.CreateStaticAppResponse();
     }
 
     private static bool IsEasyAuthEnabled => bool.TryParse(Environment.GetEnvironmentVariable("WEBSITE_AUTH_ENABLED"), out var result) && result;
