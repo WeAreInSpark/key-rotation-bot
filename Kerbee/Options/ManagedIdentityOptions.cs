@@ -8,5 +8,5 @@ public class ManagedIdentityOptions
 {
     [Required]
     [ConfigurationKeyName("AZURE_CLIENT_ID")]
-    public string ClientId { get; set; }
+    public string ClientId { get; set; } = null!;
 }

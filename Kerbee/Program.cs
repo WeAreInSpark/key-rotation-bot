@@ -7,8 +7,6 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
 
-using Bogus;
-
 using Kerbee;
 using Kerbee.Graph;
 using Kerbee.Graph.Fakes;
@@ -111,7 +109,7 @@ var host = new HostBuilder()
         services.AddSingleton<WebhookInvoker>();
         services.AddSingleton<ILifecycleNotificationHelper, WebhookLifeCycleNotification>();
 
-        services.AddScoped<GraphClientService>();
+        services.AddScoped<IGraphService, GraphService>();
 
         services.AddScoped<IApplicationService>(provider =>
         {
@@ -124,9 +122,9 @@ var host = new HostBuilder()
             else
             {
                 return new ApplicationService(
-                    provider.GetRequiredService<GraphClientService>(),
-                    provider.GetRequiredService<IOptionsSnapshot<ManagedIdentityOptions>>(),
-                    provider.GetRequiredService<ILoggerFactory>());
+                    context.Configuration,
+                    provider.GetRequiredService<ILoggerFactory>(),
+                    provider.GetRequiredService<IGraphService>());
             }
         });
     })

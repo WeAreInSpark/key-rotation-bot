@@ -7,11 +7,6 @@ using Bogus;
 
 using Kerbee.Models;
 
-using Microsoft.AspNetCore.Mvc;
-
-using OneOf;
-using OneOf.Types;
-
 namespace Kerbee.Graph.Fakes;
 
 internal class FakeApplicationService : IApplicationService
@@ -29,19 +24,23 @@ internal class FakeApplicationService : IApplicationService
     public Task AddApplicationAsync(Application application)
     {
         s_applications.Add(application);
-        s_unmanagedApplications.Remove(s_unmanagedApplications.First(x=>x.Id == application.Id));
+        s_unmanagedApplications.Remove(s_unmanagedApplications.First(x => x.Id == application.Id));
         return Task.CompletedTask;
     }
 
-    public Task<OneOf<IEnumerable<Application>, UnauthorizedResult, Error<Exception>>> GetApplicationsAsync()
+    public Task DeleteApplicationAsync(Application application)
     {
-        var result = OneOf<IEnumerable<Application>, UnauthorizedResult, Error<Exception>>.FromT0(s_applications);
-        return Task.FromResult(result);
+        s_applications.Remove(s_applications.First(x => x.Id == application.Id));
+        return Task.CompletedTask;
     }
 
-    public Task<OneOf<IEnumerable<Application>, UnauthorizedResult, Error<Exception>>> GetUnmanagedApplicationsAsync()
+    public Task<IEnumerable<Application>> GetApplicationsAsync()
     {
-        var result = OneOf<IEnumerable<Application>, UnauthorizedResult, Error<Exception>>.FromT0(s_unmanagedApplications);
-        return Task.FromResult(result);
+        return Task.FromResult((IEnumerable<Application>)s_applications.ToArray());
+    }
+
+    public Task<IEnumerable<Application>> GetUnmanagedApplicationsAsync()
+    {
+        return Task.FromResult((IEnumerable<Application>)s_unmanagedApplications.ToArray());
     }
 }

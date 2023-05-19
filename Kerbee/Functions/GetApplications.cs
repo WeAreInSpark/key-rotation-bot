@@ -2,11 +2,11 @@
 using System.Threading.Tasks;
 
 using Kerbee.Graph;
-using Kerbee.Models;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -25,24 +25,13 @@ public class GetApplications
 
     [Function($"{nameof(GetApplications)}_{nameof(HttpStart)}")]
     public async Task<HttpResponseData> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/applications")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/applications")] HttpRequestData req,
+        [DurableClient] DurableTaskClient client)
     {
-        var result = await _applicationService.GetApplicationsAsync();
+        var applications = await _applicationService.GetApplicationsAsync();
 
-        var task = result.Match(
-            apps =>
-                Task.Run(async () =>
-                {
-                    var response = req.CreateResponse(HttpStatusCode.OK);
-                    await response.WriteAsJsonAsync(apps);
-                    return response;
-                }),
-            unauthorized =>
-                Task.FromResult(req.CreateResponse(HttpStatusCode.Unauthorized)),
-            error =>
-                throw error.Value
-        );
-
-        return await task;
+        var response = req.CreateResponse(HttpStatusCode.OK);
+        await response.WriteAsJsonAsync(applications);
+        return response;
     }
 }

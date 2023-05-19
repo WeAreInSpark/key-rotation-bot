@@ -29,7 +29,6 @@ public class AzureAdOptions
     [ConfigurationKeyName("WEBSITE_AUTH_CLIENT_ID")]
     public string ClientId { get; set; }
 
-    [Required]
     [ConfigurationKeyName("MICROSOFT_PROVIDER_AUTHENTICATION_SECRET")]
     public string ClientSecret { get; set; }
 }
