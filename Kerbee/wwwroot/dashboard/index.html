@@ -57,8 +57,8 @@
               <td>{{ application.displayName }}</td>
               <td>
                 <div class="tags">
-                  <span v-for="dnsName in application.dnsNames" class="tag is-light is-medium">
-                    {{ toUnicode(dnsName) }}
+                  <span class="tag is-light is-medium">
+                    {{ application.keyType }}
                   </span>
                 </div>
               </td>

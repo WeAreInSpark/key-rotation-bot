@@ -9,7 +9,6 @@ using Azure.Security.KeyVault.Secrets;
 
 using Kerbee;
 using Kerbee.Graph;
-using Kerbee.Graph.Fakes;
 using Kerbee.Internal;
 using Kerbee.Internal.Fakes;
 using Kerbee.Options;
@@ -80,28 +79,26 @@ var host = new HostBuilder()
             return AzureEnvironment.Get(options.Value.Environment);
         });
 
-        services.AddSingleton<TokenCredential>(provider =>
+        services.AddSingleton(provider =>
         {
             var environment = provider.GetRequiredService<AzureEnvironment>();
-
-            return new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
+            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
             {
                 AuthorityHost = environment.AuthorityHost
             });
-        });
-
-        services.AddSingleton(provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
-            var credential = provider.GetRequiredService<TokenCredential>();
 
             return new CertificateClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 
         services.AddSingleton(provider =>
         {
+            var environment = provider.GetRequiredService<AzureEnvironment>();
             var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
-            var credential = provider.GetRequiredService<TokenCredential>();
+            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            {
+                AuthorityHost = environment.AuthorityHost
+            });
 
             return new SecretClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
@@ -111,22 +108,7 @@ var host = new HostBuilder()
 
         services.AddScoped<IGraphService, GraphService>();
 
-        services.AddScoped<IApplicationService>(provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<DeveloperOptions>>();
-
-            if (options.Value.UseFakeApi)
-            {
-                return new FakeApplicationService();
-            }
-            else
-            {
-                return new ApplicationService(
-                    context.Configuration,
-                    provider.GetRequiredService<ILoggerFactory>(),
-                    provider.GetRequiredService<IGraphService>());
-            }
-        });
+        services.AddScoped<IApplicationService, ApplicationService>();
     })
     .Build();
 

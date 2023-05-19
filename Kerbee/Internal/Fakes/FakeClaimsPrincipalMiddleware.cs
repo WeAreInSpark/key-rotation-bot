@@ -1,6 +1,8 @@
 ﻿using System.Security.Claims;
 using System.Threading.Tasks;
 
+using Azure.Identity;
+
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +20,10 @@ public class FakeClaimsPrincipalMiddleware : IFunctionsWorkerMiddleware
         var accessor = context.InstanceServices.GetRequiredService<IClaimsPrincipalAccessor>();
 
         accessor.Principal = new ClaimsPrincipal(new ClaimsIdentity("fake"));
+
+        var scopes = new string[] { "https://graph.microsoft.com" };
+        var accessToken = await new DefaultAzureCredential().GetTokenAsync(new(scopes));
+        accessor.AccessToken = accessToken.Token;
 
         await next(context);
     }
