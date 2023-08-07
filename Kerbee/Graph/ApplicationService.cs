@@ -6,13 +6,16 @@ using System.Threading.Tasks;
 using Azure;
 using Azure.Data.Tables;
 using Azure.Security.KeyVault.Certificates;
+using Azure.Security.KeyVault.Secrets;
 
 using Kerbee.Entities;
 using Kerbee.Internal;
 using Kerbee.Models;
+using Kerbee.Options;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Kerbee.Graph;
 
@@ -22,17 +25,24 @@ internal class ApplicationService : IApplicationService
     private readonly TableClient _tableClient;
     private readonly IGraphService _graphService;
     private readonly CertificateClient _certificateClient;
+    private readonly SecretClient _secretClient;
+    private readonly IOptions<KerbeeOptions> _kerbeeOptions;
+
 
     public ApplicationService(
         IConfiguration configuration,
         ILoggerFactory loggerFactory,
         IGraphService graphService,
-        CertificateClient certificateClient)
+        CertificateClient certificateClient,
+        SecretClient secretClient,
+        IOptions<KerbeeOptions> kerbeeOptions)
     {
         _logger = loggerFactory.CreateLogger<ApplicationService>();
         _tableClient = new TableClient(configuration["AzureWebJobsStorage"], "applications");
         _graphService = graphService;
         _certificateClient = certificateClient;
+        _secretClient = secretClient;
+        _kerbeeOptions = kerbeeOptions;
     }
 
     public async Task AddApplicationAsync(Application application)
@@ -45,7 +55,7 @@ internal class ApplicationService : IApplicationService
         await _graphService.MakeManagedIdentityOwnerOfApplicationAsync(application.Id.ToString());
 
         application.KeyType = KeyType.Certificate;
-        await RotateKey(application);
+        await RenewCertificate(application);
     }
 
     public async Task DeleteApplicationAsync(Application application)
@@ -56,20 +66,27 @@ internal class ApplicationService : IApplicationService
         await _tableClient.DeleteEntityAsync("kerbee", application.Id.ToString());
     }
 
-    public async Task<IEnumerable<Application>> GetApplicationsAsync()
+    public async Task<IEnumerable<Application>> GetApplicationsAsync(DateTime? expiryDate = null)
     {
         // Create the table if it doesn't exist
         await _tableClient.CreateIfNotExistsAsync();
 
-        var applicationEntitiesQuery = _tableClient
-            .QueryAsync<ApplicationEntity>(x => x.PartitionKey == "kerbee");
+        var applicationEntities = expiryDate.HasValue
+            ? _tableClient.QueryAsync<ApplicationEntity>(x => x.PartitionKey == "kerbee" && x.ExpiresOn <= expiryDate)
+            : _tableClient.QueryAsync<ApplicationEntity>(x => x.PartitionKey == "kerbee");
 
         var applications = new List<Application>();
-        await foreach (var applicationEntity in applicationEntitiesQuery)
+        await foreach (var applicationEntity in applicationEntities)
         {
             applications.Add(applicationEntity.ToModel());
         }
 
+        return applications;
+    }
+
+    public async Task UpdateApplications()
+    {
+        var applications = (await GetApplicationsAsync()).ToList();
         var graphApplications = await _graphService.GetApplicationsAsync();
 
         // Remove applications that are no longer owned by kerbee in the graph
@@ -94,17 +111,15 @@ internal class ApplicationService : IApplicationService
             await AddApplicationAsync(application);
             applications.Add(application);
         }
-
-        return applications;
     }
 
-    public async Task RotateKey(Application application)
+    public async Task RenewCertificate(Application application)
     {
-        _logger.LogInformation("Rotating key for application {applicationId}", application.Id);
+        _logger.LogInformation("Renewing certificate for application {applicationId}", application.Id);
 
         // Generate certificate in Azure Key Vault
         var policy = CertificatePolicy.Default;
-        policy.ValidityInMonths = 3;
+        policy.ValidityInMonths = _kerbeeOptions.Value.ValidityInMonths;
 
         var certificateOperation = await _certificateClient.StartCreateCertificateAsync(
             application.Id.ToString(), policy);
@@ -122,11 +137,52 @@ internal class ApplicationService : IApplicationService
 
         // Update the application in the table
         var applicationEntity = application.ToEntity();
+        applicationEntity.KeyType = KeyType.Certificate;
         applicationEntity.KeyVaultKeyId = certificate.Value.KeyId.ToString();
         applicationEntity.KeyId = keyId;
         applicationEntity.CreatedOn = certificate.Value.Properties.CreatedOn.Value;
         applicationEntity.ExpiresOn = certificate.Value.Properties.ExpiresOn.Value;
 
         await _tableClient.UpdateEntityAsync(applicationEntity, ETag.All);
+    }
+
+    public async Task RenewSecret(Application application)
+    {
+        _logger.LogInformation("Renewing secret for application {applicationId}", application.Id);
+
+        // Add the secret to the application in the graph
+        var azureADSecret = await _graphService.GenerateSecretAsync(application.Id.ToString(), _kerbeeOptions.Value.ValidityInMonths);
+
+        if (azureADSecret.StartDateTime is null || azureADSecret.EndDateTime is null)
+        {
+            throw new Exception("Secret creation failed");
+        }
+
+        var keyVaultSecret = new KeyVaultSecret(application.Id.ToString(), azureADSecret.SecretText)
+        {
+            Properties =
+            {
+                ExpiresOn = azureADSecret.EndDateTime,
+                NotBefore = azureADSecret.StartDateTime
+            }
+        };
+
+        var response = await _secretClient.SetSecretAsync(keyVaultSecret);
+
+        if (response is null)
+        {
+            throw new Exception("Secret creation failed");
+        }
+
+        // Update the application in the table
+        var applicationEntity = application.ToEntity();
+        applicationEntity.KeyType = KeyType.Secret;
+        applicationEntity.KeyVaultKeyId = response.Value.Id.ToString();
+        applicationEntity.KeyId = azureADSecret.KeyId;
+        applicationEntity.CreatedOn = azureADSecret.StartDateTime.Value;
+        applicationEntity.ExpiresOn = azureADSecret.EndDateTime.Value;
+
+        await _tableClient.UpdateEntityAsync(applicationEntity, ETag.All);
+
     }
 }

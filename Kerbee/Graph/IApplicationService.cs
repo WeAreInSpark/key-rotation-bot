@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using Kerbee.Models;
@@ -7,7 +8,10 @@ namespace Kerbee.Graph;
 
 public interface IApplicationService
 {
-    Task<IEnumerable<Application>> GetApplicationsAsync();
+    Task<IEnumerable<Application>> GetApplicationsAsync(DateTime? expiryDate = null);
     Task AddApplicationAsync(Application application);
     Task DeleteApplicationAsync(Application application);
+    Task RenewCertificate(Application application);
+    Task RenewSecret(Application application);
+    Task UpdateApplications();
 }

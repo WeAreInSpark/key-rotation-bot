@@ -23,11 +23,12 @@ public class GraphService : IGraphService
     private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
     private readonly AzureAdOptions _azureAdOptions;
     private readonly ManagedIdentityOptions _managedIdentityOptions;
+    private readonly KerbeeOptions _kerbeeOptions;
 
     public GraphService(
         IClaimsPrincipalAccessor claimsPrincipalAccessor,
         IOptions<AzureAdOptions> azureAdOptions,
-        IOptionsSnapshot<ManagedIdentityOptions> managedIdentityOptions,
+        IOptions<ManagedIdentityOptions> managedIdentityOptions,
         ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger<GraphService>();
@@ -111,37 +112,42 @@ public class GraphService : IGraphService
             .GetAsync();
 
         var keyId = application?.KeyCredentials?.FirstOrDefault()?.KeyId;
-        return keyId is null
-            ? throw new Exception($"Failed to add certificate to application {applicationObjectId}")
-            : keyId.Value;
+
+        if (keyId is null)
+        {
+            throw new Exception($"Failed to add certificate to application {applicationObjectId}");
+        }
+
+        _logger.LogInformation("Generated new certificate for application {applicationId}", applicationObjectId);
+        return keyId.Value;
     }
 
-    public async Task<string> GeneratePasswordAsync(Application application)
+    public async Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int validityInMonths)
     {
         var client = GetClientForManagedIdentity();
 
         // Generate a new password for the application
         var password = await client
-            .Applications[application.Id]
+            .Applications[applicationObjectId]
             .AddPassword
             .PostAsync(new()
             {
                 PasswordCredential = new()
                 {
                     DisplayName = $"Managed by Kerbee",
-                    EndDateTime = DateTimeOffset.UtcNow.AddDays(90),
+                    EndDateTime = DateTimeOffset.UtcNow.AddMonths(validityInMonths),
                     StartDateTime = DateTimeOffset.UtcNow,
                 }
             });
 
         if (password?.SecretText is null)
         {
-            throw new Exception($"Failed to add password to application {application.DisplayName}");
+            throw new Exception($"Failed to add password to application {applicationObjectId}");
         }
 
-        _logger.LogInformation("Generated new password for application {displayName}", application.DisplayName);
+        _logger.LogInformation("Generated new password for application {applicationId}", applicationObjectId);
 
-        return password.SecretText;
+        return password;
     }
 
     private async Task<IEnumerable<Application>> GetApplicationsInternalAsync()
@@ -191,6 +197,10 @@ public class GraphService : IGraphService
 
     private GraphServiceClient GetClientForUser()
     {
+#if DEBUG
+        return GetClientForManagedIdentity();
+#endif
+
         if (_claimsPrincipalAccessor.Principal?.Identity?.IsAuthenticated != true)
         {
             throw new AuthenticationException();

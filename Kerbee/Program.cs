@@ -39,6 +39,10 @@ var host = new HostBuilder()
             return options.Value.UseFakeAuth;
         });
     })
+    .ConfigureLogging(builder =>
+    {
+        builder.AddConsole();
+    })
     .ConfigureServices((context, services) =>
     {
         // Add Options

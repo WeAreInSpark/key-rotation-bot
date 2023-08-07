@@ -11,6 +11,6 @@ public interface IGraphService
     Task MakeManagedIdentityOwnerOfApplicationAsync(string applicationObjectId);
     Task<IEnumerable<Application>> GetApplicationsAsync();
     Task<IEnumerable<Application>> GetUnmanagedApplicationsAsync();
-    Task<string> GeneratePasswordAsync(Application application);
+    Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int ValidityInMonths);
     Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer);
 }

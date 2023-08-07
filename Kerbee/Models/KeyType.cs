@@ -3,6 +3,6 @@
 public enum KeyType
 {
     None,
-    Password,
+    Secret,
     Certificate
 }
