@@ -19,5 +19,5 @@ public class ApplicationEntity : ITableEntity
     public Guid? KeyId { get; internal set; }
     public KeyType KeyType { get; set; }
     public DateTimeOffset CreatedOn { get; set; }
-    public DateTimeOffset ExpiresOn { get; set; }
+    public DateTimeOffset? ExpiresOn { get; set; }
 }

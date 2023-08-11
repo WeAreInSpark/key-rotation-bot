@@ -28,7 +28,6 @@ internal class ApplicationService : IApplicationService
     private readonly SecretClient _secretClient;
     private readonly IOptions<KerbeeOptions> _kerbeeOptions;
 
-
     public ApplicationService(
         IConfiguration configuration,
         ILoggerFactory loggerFactory,
@@ -50,12 +49,14 @@ internal class ApplicationService : IApplicationService
         // Create the table if it doesn't exist
         await _tableClient.CreateIfNotExistsAsync();
 
+        if (application.CreatedOn == default)
+        {
+            application.CreatedOn = DateTime.UtcNow;
+        }
+
         await _tableClient.AddEntityAsync(application.ToEntity());
 
         await _graphService.MakeManagedIdentityOwnerOfApplicationAsync(application.Id.ToString());
-
-        application.KeyType = KeyType.Certificate;
-        await RenewCertificate(application);
     }
 
     public async Task DeleteApplicationAsync(Application application)
@@ -183,6 +184,17 @@ internal class ApplicationService : IApplicationService
         applicationEntity.ExpiresOn = azureADSecret.EndDateTime.Value;
 
         await _tableClient.UpdateEntityAsync(applicationEntity, ETag.All);
+    }
 
+    public async Task RenewKeyAsync(Application application)
+    {
+        var task = application.KeyType switch
+        {
+            KeyType.Certificate => RenewCertificate(application),
+            KeyType.Secret => RenewSecret(application),
+            _ => Task.CompletedTask
+        };
+
+        await task;
     }
 }

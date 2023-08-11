@@ -34,6 +34,7 @@ public class AddApplication
         Guard.IsNotNull(application, nameof(application));
 
         await _applicationService.AddApplicationAsync(application);
+        await _applicationService.RenewKeyAsync(application);
 
         return req.CreateResponse(HttpStatusCode.OK);
     }

@@ -8,15 +8,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
-[DurableTask(nameof(RenewCertificateActivity))]
-public class RenewCertificateActivity : TaskActivity<Application, object>
+[DurableTask(nameof(RenewKeyActivity))]
+public class RenewKeyActivity : TaskActivity<Application, object>
 {
-
     private readonly ILogger _logger;
     private readonly IApplicationService _applicationService;
 
-    public RenewCertificateActivity(
-        ILogger<RenewCertificateActivity> logger,
+    public RenewKeyActivity(
+        ILogger<RenewKeyActivity> logger,
         IApplicationService applicationService)
     {
         _logger = logger;
@@ -25,7 +24,7 @@ public class RenewCertificateActivity : TaskActivity<Application, object>
 
     public async override Task<object> RunAsync(TaskActivityContext context, Application application)
     {
-        await _applicationService.RenewCertificate(application);
+        await _applicationService.RenewKeyAsync(application);
         return new();
     }
 }

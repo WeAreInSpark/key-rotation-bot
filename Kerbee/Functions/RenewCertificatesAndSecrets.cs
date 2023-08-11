@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -42,18 +41,8 @@ public class RenewCertificatesAndSecrets
             applicationWithExpiringKey.KeyType = _kerbeeOptions.Value.DefaultKeyType;
         }
 
-        var renewalTasks = new List<Task>();
-        foreach (var applicationWithExpiringKey in applicationsWithExpiringKeys)
-        {
-            if (applicationWithExpiringKey.KeyType == KeyType.Certificate)
-            {
-                renewalTasks.Add(context.CallRenewCertificateActivityAsync(applicationWithExpiringKey));
-            }
-            else if (applicationWithExpiringKey.KeyType == KeyType.Secret)
-            {
-                renewalTasks.Add(context.CallRenewSecretActivityAsync(applicationWithExpiringKey));
-            }
-        }
+        var renewalTasks = applicationsWithExpiringKeys.Select(x => context.CallRenewKeyActivityAsync(x)).ToList();
+
         await Task.WhenAll(renewalTasks);
     }
 

@@ -360,7 +360,7 @@
             const response = await axios.get("/api/applications");
 
             if (response.status === 200) {
-              this.applications = response.data.sort((x, y) => x.expiresOn.localeCompare(y.expiresOn));
+              this.applications = response.data; // response.data.sort((x, y) => x.expiresOn.localeCompare(y.expiresOn));
             }
           } catch (error) {
             this.handleHttpError(error);

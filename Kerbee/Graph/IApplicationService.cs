@@ -14,4 +14,5 @@ public interface IApplicationService
     Task RenewCertificate(Application application);
     Task RenewSecret(Application application);
     Task UpdateApplications();
+    Task RenewKeyAsync(Application application);
 }
