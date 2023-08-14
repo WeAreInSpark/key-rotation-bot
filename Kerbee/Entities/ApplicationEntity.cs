@@ -14,9 +14,9 @@ public class ApplicationEntity : ITableEntity
     public DateTimeOffset? Timestamp { get; set; }
     public ETag ETag { get; set; }
     public string DisplayName { get; set; } = null!;
-    public object AppId { get; internal set; } = null!;
-    public string? KeyVaultKeyId { get; internal set; }
-    public Guid? KeyId { get; internal set; }
+    public Guid AppId { get; set; }
+    public string? KeyVaultKeyId { get; set; }
+    public Guid? KeyId { get; set; }
     public KeyType KeyType { get; set; }
     public DateTimeOffset CreatedOn { get; set; }
     public DateTimeOffset? ExpiresOn { get; set; }

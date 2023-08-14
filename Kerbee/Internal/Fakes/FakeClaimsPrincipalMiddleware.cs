@@ -22,6 +22,11 @@ public class FakeClaimsPrincipalMiddleware : IFunctionsWorkerMiddleware
         {
             var accessor = context.InstanceServices.GetRequiredService<IClaimsPrincipalAccessor>();
 
+            if (accessor.AccessToken is not null)
+            {
+                return;
+            }
+
             accessor.Principal = new ClaimsPrincipal(new ClaimsIdentity("fake"));
 
             var scopes = new string[] { "https://graph.microsoft.com" };

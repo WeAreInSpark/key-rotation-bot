@@ -105,11 +105,11 @@
                   <div class="field">
                     <div class="control">
                       <label class="radio">
-                        <input type="radio" v-model="add.keyType" v-bind:value="Certificate">
+                        <input type="radio" v-model="add.keyType" value="Certificate" />
                         Certificate
                       </label>
                       <label class="radio">
-                        <input type="radio" v-model="add.keyType" v-bind:value="Secret">
+                        <input type="radio" v-model="add.keyType" value="Secret" />
                         Secret
                       </label>
                     </div>
@@ -184,10 +184,11 @@
       </div>
     </div>
   </section>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.11/vue.global.prod.min.js" integrity="sha512-RiF+Jrmab5nvkymjQZrHxYRi83mZj3cblSwolvamR1phU+rN9gUBPGEU7P+tvaKncRSk8dXvJhyhKb0BpYgj9A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.4/axios.min.js" integrity="sha512-lTLt+W7MrmDfKam+r3D2LURu0F47a3QaW5nF0c6Hl0JDZ57ruei+ovbg7BrZ+0bjVJ5YgzsAWE+RreERbpPE1g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/punycode/1.4.1/punycode.min.js" integrity="sha512-YZlXEJ9dOHnIn3LXSS3RpbhAtTQZWw2VOywaMsC8p7/0DyGu0gEf0pFhkQtE/i4pQpgGUDY7cicb401Tf/5sRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script>
+  <script type="module">
+    import { createApp } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
+
     const delay = (millisecondsDelay) => {
       return new Promise(resolve => setTimeout(() => resolve(), millisecondsDelay));
     }
@@ -198,22 +199,15 @@
           applications: [],
           loading: false,
           add: {
-            zones: [],
-            zoneName: "",
+            application: {},
             applications: [],
-            recordName: "",
-            useAdvancedOptions: false,
-            applicationName: "",
-            keyType: "RSA",
-            keySize: "2048",
-            keyCurveName: "P-256",
-            reuseKey: false,
+            keyType: "Certificate",
             loading: false,
             sending: false,
             modalActive: false
           },
           details: {
-            application: "",
+            application: {},
             sending: false,
             modalActive: false
           }
@@ -255,21 +249,12 @@
 
           this.add.loading = false;
         },
-        addApplication() {
+        async addApplication() {
           if (this.add.application === null) {
             return;
           }
 
-          if (this.add.dnsNames.indexOf(dnsName) === -1) {
-            this.add.dnsNames.push(dnsName);
-          }
-
-          this.add.recordName = "";
-        },
-        removeDnsName(dnsName) {
-          this.add.dnsNames = this.add.dnsNames.filter(x => x !== dnsName);
-        },
-        async addApplication() {
+          this.add.application.keyType = this.add.keyType;
           this.add.sending = true;
 
           try {
@@ -322,10 +307,10 @@
           this.details.sending = true;
 
           try {
-            const response = await axios.delete(`/api/applications/${this.details.id}`);
+            const response = await axios.delete(`/api/applications/${this.details.application.id}`);
 
             if (response.status === 200) {
-              alert(`The application '${this.details.displayName}' is now unmanaged.`);
+              alert(`The application '${this.details.application.displayName}' is now unmanaged.`);
             }
           } catch (error) {
             this.handleHttpError(error);
@@ -333,6 +318,8 @@
 
           this.details.sending = false;
           this.details.modalActive = false;
+
+          await this.refresh();
         },
         toUnicode(value) {
           return punycode.toUnicode(value);
@@ -375,7 +362,7 @@
       }
     };
 
-    Vue.createApp(app).mount("#app");
+    createApp(app).mount("#app");
   </script>
 </body>
 </html>

@@ -85,6 +85,21 @@ internal class ApplicationService : IApplicationService
         return applications;
     }
 
+    public async Task UnmanageApplicationAsync(string applicationId)
+    {
+        // Create the table if it doesn't exist
+        await _tableClient.CreateIfNotExistsAsync();
+
+        var application = (await GetApplicationsAsync()).FirstOrDefault(x => x.Id.ToString() == applicationId);
+        if (application == null)
+        {
+            return;
+        }
+
+        await _graphService.RemoveManagedIdentityAsOwnerOfApplicationAsync(applicationId);
+        await DeleteApplicationAsync(application);
+    }   
+
     public async Task UpdateApplications()
     {
         var applications = (await GetApplicationsAsync()).ToList();

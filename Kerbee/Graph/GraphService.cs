@@ -59,7 +59,7 @@ public class GraphService : IGraphService
 
         // Return all applications except the managed ones
         return response.Value
-            .Except(managedApplications)
+            .Where(app => managedApplications.None(x => x.AppId == app.AppId))
             .OrderBy(x => x.DisplayName)
             .ToArray();
     }
@@ -76,6 +76,16 @@ public class GraphService : IGraphService
 
         var managedIdentity = await GetManagedIdentity(client);
 
+        var owners = await client.Applications[applicationObjectId]
+            .Owners
+            .GetAsync();
+
+        // check if applicationObjectId is already an owner
+        if (owners?.Value is not null && owners.Value.Any(x => x.Id == managedIdentity.Id))
+        {
+            return;
+        }
+
         await client.Applications[applicationObjectId]
             .Owners
             .Ref
@@ -83,6 +93,28 @@ public class GraphService : IGraphService
             {
                 OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{managedIdentity.Id}"
             });
+    }
+
+    public async Task RemoveManagedIdentityAsOwnerOfApplicationAsync(string applicationObjectId)
+    {
+        var client = GetClientForUser();
+
+        var managedIdentity = await GetManagedIdentity(client);
+
+        var owners = await client.Applications[applicationObjectId]
+            .Owners
+            .GetAsync();
+
+        // check if applicationObjectId is an owner
+        if (owners is not null && owners.Value is not null && owners.Value.Any(x => x.Id == managedIdentity.Id))
+        {
+            return;
+        }
+
+        await client.Applications[applicationObjectId]
+            .Owners[managedIdentity.Id]
+            .Ref
+            .DeleteAsync();
     }
 
     public async Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer)
@@ -197,11 +229,7 @@ public class GraphService : IGraphService
 
     private GraphServiceClient GetClientForUser()
     {
-#if DEBUG
-        return GetClientForManagedIdentity();
-#endif
-
-        if (_claimsPrincipalAccessor.Principal?.Identity?.IsAuthenticated != true)
+         if (_claimsPrincipalAccessor.Principal?.Identity?.IsAuthenticated != true)
         {
             throw new AuthenticationException();
         }
