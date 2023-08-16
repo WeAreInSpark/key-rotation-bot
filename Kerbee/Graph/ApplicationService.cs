@@ -201,6 +201,17 @@ internal class ApplicationService : IApplicationService
         await _tableClient.UpdateEntityAsync(applicationEntity, ETag.All);
     }
 
+    public async Task RenewKeyAsync(string applicationId)
+    {
+        var application = (await GetApplicationsAsync()).FirstOrDefault(x => x.Id.ToString() == applicationId);
+        if (application == null)
+        {
+            return;
+        }
+
+        await RenewKeyAsync(application);
+    }
+
     public async Task RenewKeyAsync(Application application)
     {
         var task = application.KeyType switch
