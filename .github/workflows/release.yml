@@ -41,7 +41,7 @@ jobs:
           ${{ github.ref }}.zip
           azuredeploy.bicep
 
-    - name: Create master release
+    - name: Create latest release
       uses: softprops/action-gh-release@v1
       with:
         name: latest
