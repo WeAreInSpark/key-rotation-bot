@@ -2,14 +2,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
 
 using Kerbee;
 using Kerbee.Graph;
-using Kerbee.Graph.Fakes;
 using Kerbee.Internal;
 using Kerbee.Internal.Fakes;
 using Kerbee.Options;
@@ -39,6 +37,10 @@ var host = new HostBuilder()
             var options = context.InstanceServices.GetRequiredService<IOptions<DeveloperOptions>>();
             return options.Value.UseFakeAuth;
         });
+    })
+    .ConfigureLogging(builder =>
+    {
+        builder.AddConsole();
     })
     .ConfigureServices((context, services) =>
     {
@@ -80,53 +82,45 @@ var host = new HostBuilder()
             return AzureEnvironment.Get(options.Value.Environment);
         });
 
-        services.AddSingleton<TokenCredential>(provider =>
+        services.AddSingleton(provider =>
         {
             var environment = provider.GetRequiredService<AzureEnvironment>();
-
-            return new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
+            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
             {
                 AuthorityHost = environment.AuthorityHost
             });
-        });
-
-        services.AddSingleton(provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
-            var credential = provider.GetRequiredService<TokenCredential>();
 
             return new CertificateClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 
         services.AddSingleton(provider =>
         {
+            var environment = provider.GetRequiredService<AzureEnvironment>();
             var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
-            var credential = provider.GetRequiredService<TokenCredential>();
+            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            {
+                AuthorityHost = environment.AuthorityHost
+            });
 
             return new SecretClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 
+        services.AddSingleton<IClaimsPrincipalAccessor>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<DeveloperOptions>>();
+            return options.Value.UseFakeAuth
+                ? new FakeClaimsPrincipalAccessor()
+                : new ClaimsPrincipalAccessor();
+        });
+
         services.AddSingleton<WebhookInvoker>();
         services.AddSingleton<ILifecycleNotificationHelper, WebhookLifeCycleNotification>();
+        services.AddSingleton<ManagedIdentityProvider>();
 
         services.AddScoped<IGraphService, GraphService>();
 
-        services.AddScoped<IApplicationService>(provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<DeveloperOptions>>();
-
-            if (options.Value.UseFakeApi)
-            {
-                return new FakeApplicationService();
-            }
-            else
-            {
-                return new ApplicationService(
-                    context.Configuration,
-                    provider.GetRequiredService<ILoggerFactory>(),
-                    provider.GetRequiredService<IGraphService>());
-            }
-        });
+        services.AddScoped<IApplicationService, ApplicationService>();
     })
     .Build();
 

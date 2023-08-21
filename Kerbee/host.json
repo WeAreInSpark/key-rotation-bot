@@ -8,11 +8,11 @@
       }
     },
     "logLevel": {
-      "default": "Warning",
+      "default": "Information",
       "Host.Results": "Error",
       "Function": "Error",
-      "Host.Aggregator": "Trace",
-      "Kerbee": "Information"
+      "Host.Aggregator": "Warning",
+      "Kerbee": "Warning"
     }
   },
   "extensions": {

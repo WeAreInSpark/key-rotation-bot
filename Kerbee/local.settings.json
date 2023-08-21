@@ -8,8 +8,10 @@
     "WEBSITE_AUTH_OPENID_ISSUER": "https://sts.windows.net/cd004ec9-bc4b-4721-82df-cd3a2e134a09/v2.0",
     "WEBSITE_AUTH_CLIENT_ID": "47032934-b160-4a98-a9c2-0b58bd891395",
     "Kerbee:VaultBaseUrl": "https://kerbee-1866.vault.azure.net/",
-    "Developer:UseFakeApi": false,
+    "Kerbee:ValidityInMonths": 1,
+    "Kerbee:RenewBeforeExpiryInDays": 32,
     "Developer:UseFakeAuth": true,
-    "RenewCertificates_Timer_Enabled": false
+    //"AzureWebJobs.RenewCertificatesAndSecrets_Timer.Disabled": true,
+    "AzureWebJobs.PurgeInstanceHistory_Timer.Disabled": true
   }
 }

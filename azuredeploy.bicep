@@ -5,17 +5,6 @@ param appNamePrefix string
 @description('The location of the function app that you wish to create.')
 param location string = resourceGroup().location
 
-@description('Email address for ACME account.')
-param mailAddress string
-
-@description('Certification authority ACME Endpoint.')
-@allowed([
-  'https://acme-v02.api.letsencrypt.org/'
-  'https://api.buypass.com/acme/'
-  'https://acme.zerossl.com/v2/DV90/'
-])
-param acmeEndpoint string = 'https://acme-v02.api.letsencrypt.org/'
-
 @description('If you choose true, create and configure a key vault at the same time.')
 @allowed([
   true
@@ -44,6 +33,8 @@ var appInsightsEndpoints = {
   AzureChinaCloud: 'applicationinsights.azure.cn'
   AzureUSGovernment: 'applicationinsights.us'
 }
+
+// Key Vault Certificates Officer
 var roleDefinitionId = resourceId('Microsoft.Authorization/roleDefinitions/', 'a4417e6f-fecd-4de8-b567-7b0420556985')
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
@@ -125,7 +116,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         }
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: 'https://stacmebotprod.blob.core.windows.net/keyvault-acmebot/v4/latest.zip'
+          value: 'https://github.com/WeAreInSpark/key-rotation-bot/archive/refs/tags/kerbee.zip'
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
@@ -133,15 +124,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         }
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'dotnet'
-        }
-        {
-          name: 'Acmebot:Contacts'
-          value: mailAddress
-        }
-        {
-          name: 'Acmebot:Endpoint'
-          value: acmeEndpoint
+          value: 'dotnet-isolated'
         }
         {
           name: 'Acmebot:VaultBaseUrl'

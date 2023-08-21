@@ -5,7 +5,6 @@ using System.Security.Authentication;
 using System.Threading.Tasks;
 
 using Azure.Core;
-using Azure.Identity;
 
 using Kerbee.Internal;
 using Kerbee.Options;
@@ -20,17 +19,20 @@ namespace Kerbee.Graph;
 public class GraphService : IGraphService
 {
     private readonly ILogger _logger;
+    private readonly ManagedIdentityProvider _managedIdentityProvider;
     private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
     private readonly AzureAdOptions _azureAdOptions;
     private readonly ManagedIdentityOptions _managedIdentityOptions;
 
     public GraphService(
+        ManagedIdentityProvider managedIdentityProvider,
         IClaimsPrincipalAccessor claimsPrincipalAccessor,
         IOptions<AzureAdOptions> azureAdOptions,
-        IOptionsSnapshot<ManagedIdentityOptions> managedIdentityOptions,
+        IOptions<ManagedIdentityOptions> managedIdentityOptions,
         ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger<GraphService>();
+        _managedIdentityProvider = managedIdentityProvider;
         _claimsPrincipalAccessor = claimsPrincipalAccessor;
         _azureAdOptions = azureAdOptions.Value;
         _managedIdentityOptions = managedIdentityOptions.Value;
@@ -44,7 +46,7 @@ public class GraphService : IGraphService
             .Applications
             .GetAsync(x =>
             {
-                x.QueryParameters.Select = new string[] { "id", "displayName" };
+                x.QueryParameters.Select = new string[] { "id", "displayName", "appId" };
                 x.QueryParameters.Top = 999;
             });
 
@@ -58,7 +60,7 @@ public class GraphService : IGraphService
 
         // Return all applications except the managed ones
         return response.Value
-            .Except(managedApplications)
+            .Where(app => managedApplications.None(x => x.AppId == app.AppId))
             .OrderBy(x => x.DisplayName)
             .ToArray();
     }
@@ -69,18 +71,23 @@ public class GraphService : IGraphService
         return applications.ToArray();
     }
 
-    public async Task MakeManagedIdentityOwnerOfApplicationAsync(Application application)
+    public async Task MakeManagedIdentityOwnerOfApplicationAsync(string applicationObjectId)
     {
         var client = GetClientForUser();
 
-        var managedIdentity = await GetManagedIdentity(client);
+        var managedIdentity = await _managedIdentityProvider.GetAsync();
 
-        if (application.Id is null)
+        var owners = await client.Applications[applicationObjectId]
+            .Owners
+            .GetAsync();
+
+        // check if applicationObjectId is already an owner
+        if (owners?.Value is not null && owners.Value.Any(x => x.Id == managedIdentity.Id))
         {
-            throw new ArgumentException("Application id is null");
+            return;
         }
 
-        await client.Applications[application.Id.ToString()]
+        await client.Applications[applicationObjectId]
             .Owners
             .Ref
             .PostAsync(new()
@@ -89,17 +96,95 @@ public class GraphService : IGraphService
             });
     }
 
+    public async Task RemoveManagedIdentityAsOwnerOfApplicationAsync(string applicationObjectId)
+    {
+        var client = GetClientForUser();
+
+        var managedIdentity = await _managedIdentityProvider.GetAsync();
+
+        var owners = await client.Applications[applicationObjectId]
+            .Owners
+            .GetAsync();
+
+        // check if applicationObjectId is an owner
+        if (owners?.Value is not null && owners.Value.None(x => x.Id == managedIdentity.Id))
+        {
+            return;
+        }
+
+        await client.Applications[applicationObjectId]
+            .Owners[managedIdentity.Id]
+            .Ref
+            .DeleteAsync();
+    }
+
+    public async Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer)
+    {
+        // Generate a new certificate for the application
+        _ = await _managedIdentityProvider.GetClient()
+            .Applications[applicationObjectId]
+            .PatchAsync(new()
+            {
+                KeyCredentials = new()
+                {
+                    new KeyCredential
+                    {
+                        DisplayName = "Managed by Kerbee",
+                        Key = cer,
+                        Type = "AsymmetricX509Cert",
+                        Usage = "Verify",
+                    }
+                }
+            });
+
+        // Get the updated application in order to get the key id
+        var application = await _managedIdentityProvider.GetClient()
+            .Applications[applicationObjectId]
+            .GetAsync();
+
+        var keyId = (application?.KeyCredentials?.FirstOrDefault()?.KeyId)
+            ?? throw new Exception($"Failed to add certificate to application {applicationObjectId}");
+
+        _logger.LogInformation("Generated new certificate for application {applicationId}", applicationObjectId);
+
+        return keyId;
+    }
+
+    public async Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int validityInMonths)
+    {
+        // Generate a new password for the application
+        var password = await _managedIdentityProvider.GetClient()
+            .Applications[applicationObjectId]
+            .AddPassword
+            .PostAsync(new()
+            {
+                PasswordCredential = new()
+                {
+                    DisplayName = $"Managed by Kerbee",
+                    EndDateTime = DateTimeOffset.UtcNow.AddMonths(validityInMonths),
+                    StartDateTime = DateTimeOffset.UtcNow,
+                }
+            });
+
+        if (password?.SecretText is null)
+        {
+            throw new Exception($"Failed to add password to application {applicationObjectId}");
+        }
+
+        _logger.LogInformation("Generated new password for application {applicationId}", applicationObjectId);
+
+        return password;
+    }
+
     private async Task<IEnumerable<Application>> GetApplicationsInternalAsync()
     {
-        var client = GetClientForManagedIdentity();
-
         // Get the managed identity by app id
-        var managedIdentity = await GetManagedIdentity(client);
+        var managedIdentity = await _managedIdentityProvider.GetAsync();
 
         _logger.LogInformation("Found managed identity {displayName} with id {objectId}", managedIdentity.DisplayName, managedIdentity.Id);
 
         // Get the owned objects of the managed identity
-        var response = await client
+        var response = await _managedIdentityProvider.GetClient()
             .ServicePrincipals[managedIdentity.Id]
             .OwnedObjects
             .GraphApplication
@@ -116,42 +201,8 @@ public class GraphService : IGraphService
             return Array.Empty<Application>();
         }
 
-        var application = response.Value.First();
-
-        _logger.LogInformation("Found owned application {displayName} with id {objectId}", application.DisplayName, application.Id);
-
-        // Generate a new key for the application
-        var password = await client
-            .Applications[application.Id]
-            .AddPassword
-            .PostAsync(new()
-            {
-                PasswordCredential = new()
-                {
-                    DisplayName = $"Foo {DateTime.UtcNow}",
-                    EndDateTime = DateTimeOffset.UtcNow.AddDays(90),
-                    StartDateTime = DateTimeOffset.UtcNow,
-                }
-            });
-
-        _logger.LogInformation("Generated new password for application {displayName}: {password}", application.DisplayName, password.SecretText);
-
         return response.Value
             .OrderBy(x => x.DisplayName);
-    }
-
-    private async Task<ServicePrincipal> GetManagedIdentity(GraphServiceClient client)
-    {
-        var managedIdentities = await client
-            .ServicePrincipals
-            .GetAsync(x =>
-            {
-                x.QueryParameters.Filter = $"appId eq '{_managedIdentityOptions.ClientId}'";
-                x.QueryParameters.Select = new string[] { "id", "displayName" };
-            });
-
-        return managedIdentities?.Value?.FirstOrDefault()
-            ?? throw new Exception("Managed identity not found");
     }
 
     private GraphServiceClient GetClientForUser()
@@ -166,21 +217,10 @@ public class GraphService : IGraphService
             throw new AuthenticationException();
         }
 
-        _logger.LogInformation("Access token: {accessToken}", _claimsPrincipalAccessor.AccessToken);
-
         return new GraphServiceClient(DelegatedTokenCredential.Create(
             (_, _) =>
             {
                 return new AccessToken(_claimsPrincipalAccessor.AccessToken, DateTime.UtcNow.AddDays(1));
-            }));
-    }
-
-    private GraphServiceClient GetClientForManagedIdentity()
-    {
-        return new GraphServiceClient(new DefaultAzureCredential(
-            new DefaultAzureCredentialOptions
-            {
-                TenantId = _azureAdOptions.TenantId,
             }));
     }
 }

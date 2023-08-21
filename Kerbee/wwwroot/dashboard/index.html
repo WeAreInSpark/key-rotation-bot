@@ -32,7 +32,7 @@
               <span class="icon">
                 <i class="fas fa-plus"></i>
               </span>
-              <span>Add</span>
+              <span>Manage</span>
             </a>
             <a class="button" @click="refresh" :class="{ 'is-loading': loading }">
               <span class="icon">
@@ -57,8 +57,8 @@
               <td>{{ application.displayName }}</td>
               <td>
                 <div class="tags">
-                  <span v-for="dnsName in application.dnsNames" class="tag is-light is-medium">
-                    {{ toUnicode(dnsName) }}
+                  <span class="tag is-light is-medium">
+                    {{ application.keyType }}
                   </span>
                 </div>
               </td>
@@ -72,7 +72,7 @@
             </tr>
           </tbody>
         </table>
-        <!-- Add application model -->
+        <!-- Add application modal -->
         <div class="modal" :class="{ 'is-active': add.modalActive }">
           <div class="modal-background"></div>
           <div class="modal-card">
@@ -88,9 +88,9 @@
                   <div class="field">
                     <div class="control is-expanded">
                       <div class="select is-fullwidth" :class="{ 'is-loading': add.loading }">
-                        <select v-model="add.application">
+                        <select v-model="add.application" @change="onApplicationSelectionChanged()">
                           <option disabled value="">Please select one</option>
-                          <option v-for="application in add.applications" :value="application">{{ application.displayName }}</option>
+                          <option v-for="application in add.applications" :value="application">{{ application.displayName }} ({{ application.appId }})</option>
                         </select>
                       </div>
                     </div>
@@ -98,153 +98,32 @@
                 </div>
               </div>
               <div class="field is-horizontal">
-                <div class="field-label is-normal">
-                  <label class="label">DNS Names</label>
+                <div class="field-label">
+                  <label class="label">Key type</label>
                 </div>
                 <div class="field-body">
-                  <div class="field has-addons">
-                    <p class="control">
-                      <input v-model="add.recordName" class="input" type="text" placeholder="Record name" :disabled="add.zoneName.length === 0">
-                    </p>
-                    <p class="control">
-                      <a class="button is-static">
-                        .{{ toUnicode(add.zoneName) }}
-                      </a>
-                    </p>
-                    <p class="control">
-                      <button class="button is-info" @click="addDnsName" :disabled="add.zoneName.length === 0">Add</button>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div class="field is-horizontal">
-                <div class="field-label"></div>
-                <div class="field-body">
-                  <div class="content">
-                    <div class="tags">
-                      <span v-for="dnsName in add.dnsNames" class="tag is-light is-medium">
-                        {{ toUnicode(dnsName) }}
-                        <button class="delete is-small" @click="removeDnsName(dnsName)"></button>
-                      </span>
+                  <div class="field">
+                    <div class="control">
+                      <label class="radio">
+                        <input type="radio" v-model="add.keyType" value="Certificate" />
+                        Certificate
+                      </label>
+                      <label class="radio">
+                        <input type="radio" v-model="add.keyType" value="Secret" />
+                        Secret
+                      </label>
                     </div>
                   </div>
                 </div>
               </div>
               <div class="field is-horizontal">
                 <div class="field-label">
-                  <label class="label">Use Advanced Options?</label>
-                </div>
-                <div class="field-body">
-                  <div class="field is-narrow">
-                    <div class="control">
-                      <label class="radio">
-                        <input type="radio" v-model="add.useAdvancedOptions" v-bind:value="true">
-                        Yes
-                      </label>
-                      <label class="radio">
-                        <input type="radio" v-model="add.useAdvancedOptions" v-bind:value="false">
-                        No
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="field is-horizontal" v-if="add.useAdvancedOptions">
-                <div class="field-label is-normal">
-                  <label class="label">Application Name</label>
-                </div>
-                <div class="field-body">
-                  <div class="field">
-                    <p class="control">
-                      <input v-model="add.applicationName" class="input" type="text" placeholder="Application name">
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div class="field is-horizontal" v-if="add.useAdvancedOptions">
-                <div class="field-label">
-                  <label class="label">Key Type</label>
+                  <label class="label">KeyVault secret name</label>
                 </div>
                 <div class="field-body">
                   <div class="field">
                     <div class="control">
-                      <label class="radio">
-                        <input type="radio" value="RSA" v-model="add.keyType">
-                        RSA
-                      </label>
-                      <label class="radio">
-                        <input type="radio" value="EC" v-model="add.keyType">
-                        EC
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="field is-horizontal" v-if="add.useAdvancedOptions && add.keyType === 'RSA'">
-                <div class="field-label">
-                  <label class="label">Key Size</label>
-                </div>
-                <div class="field-body">
-                  <div class="field">
-                    <div class="control">
-                      <label class="radio">
-                        <input type="radio" value="2048" v-model="add.keySize">
-                        2048
-                      </label>
-                      <label class="radio">
-                        <input type="radio" value="3072" v-model="add.keySize">
-                        3072
-                      </label>
-                      <label class="radio">
-                        <input type="radio" value="4096" v-model="add.keySize">
-                        4096
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="field is-horizontal" v-if="add.useAdvancedOptions && add.keyType === 'EC'">
-                <div class="field-label">
-                  <label class="label">Elliptic Curve Name</label>
-                </div>
-                <div class="field-body">
-                  <div class="field">
-                    <div class="control">
-                      <label class="radio">
-                        <input type="radio" value="P-256" v-model="add.keyCurveName">
-                        P-256
-                      </label>
-                      <label class="radio">
-                        <input type="radio" value="P-384" v-model="add.keyCurveName">
-                        P-384
-                      </label>
-                      <label class="radio">
-                        <input type="radio" value="P-521" v-model="add.keyCurveName">
-                        P-521
-                      </label>
-                      <label class="radio">
-                        <input type="radio" value="P-256K" v-model="add.keyCurveName">
-                        P-256K
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="field is-horizontal" v-if="add.useAdvancedOptions">
-                <div class="field-label">
-                  <label class="label">Reuse Key on Renewal?</label>
-                </div>
-                <div class="field-body">
-                  <div class="field">
-                    <div class="control">
-                      <label class="radio">
-                        <input type="radio" v-model="add.reuseKey" v-bind:value="true">
-                        Yes
-                      </label>
-                      <label class="radio">
-                        <input type="radio" v-model="add.reuseKey" v-bind:value="false">
-                        No
-                      </label>
+                      <input class="input is-normal is-fullwidth" v-model="add.keyName" />
                     </div>
                   </div>
                 </div>
@@ -287,6 +166,16 @@
                 </div>
                 <div class="field is-horizontal">
                   <div class="field-label">
+                    <label class="label">KeyVault secret name</label>
+                  </div>
+                  <div class="field-body">
+                    <div class="content">
+                      {{ details.application.keyName }}
+                    </div>
+                  </div>
+                </div>
+                <div class="field is-horizontal">
+                  <div class="field-label">
                     <label class="label">Created On</label>
                   </div>
                   <div class="field-body">
@@ -309,7 +198,7 @@
             </section>
             <footer class="modal-card-foot is-justify-content-flex-end">
               <button class="button is-primary" @click="renewKey" :class="{ 'is-loading': details.sending }">Renew</button>
-              <button class="button is-danger" @click="revokeKey" :class="{ 'is-loading': details.sending }" v-if="!details.application.isExpired">Revoke</button>
+              <button class="button is-danger" @click="unmanage" :class="{ 'is-loading': details.sending }" v-if="!details.application.isExpired">Unmanage</button>
               <button class="button" @click="details.modalActive = false" :disabled="details.sending">Close</button>
             </footer>
           </div>
@@ -317,10 +206,11 @@
       </div>
     </div>
   </section>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.11/vue.global.prod.min.js" integrity="sha512-RiF+Jrmab5nvkymjQZrHxYRi83mZj3cblSwolvamR1phU+rN9gUBPGEU7P+tvaKncRSk8dXvJhyhKb0BpYgj9A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.4/axios.min.js" integrity="sha512-lTLt+W7MrmDfKam+r3D2LURu0F47a3QaW5nF0c6Hl0JDZ57ruei+ovbg7BrZ+0bjVJ5YgzsAWE+RreERbpPE1g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/punycode/1.4.1/punycode.min.js" integrity="sha512-YZlXEJ9dOHnIn3LXSS3RpbhAtTQZWw2VOywaMsC8p7/0DyGu0gEf0pFhkQtE/i4pQpgGUDY7cicb401Tf/5sRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script>
+  <script type="module">
+    import { createApp } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js'
+
     const delay = (millisecondsDelay) => {
       return new Promise(resolve => setTimeout(() => resolve(), millisecondsDelay));
     }
@@ -331,22 +221,16 @@
           applications: [],
           loading: false,
           add: {
-            zones: [],
-            zoneName: "",
+            application: {},
             applications: [],
-            recordName: "",
-            useAdvancedOptions: false,
-            applicationName: "",
-            keyType: "RSA",
-            keySize: "2048",
-            keyCurveName: "P-256",
-            reuseKey: false,
+            keyType: "Certificate",
+            keyName: "",
             loading: false,
             sending: false,
             modalActive: false
           },
           details: {
-            application: "",
+            application: {},
             sending: false,
             modalActive: false
           }
@@ -360,7 +244,7 @@
             const response = await axios.get("/api/applications");
 
             if (response.status === 200) {
-              this.applications = response.data.sort((x, y) => x.expiresOn.localeCompare(y.expiresOn));
+              this.applications = response.data; // response.data.sort((x, y) => x.expiresOn.localeCompare(y.expiresOn));
             }
           } catch (error) {
             this.handleHttpError(error);
@@ -388,21 +272,13 @@
 
           this.add.loading = false;
         },
-        addApplication() {
+        async addApplication() {
           if (this.add.application === null) {
             return;
           }
 
-          if (this.add.dnsNames.indexOf(dnsName) === -1) {
-            this.add.dnsNames.push(dnsName);
-          }
-
-          this.add.recordName = "";
-        },
-        removeDnsName(dnsName) {
-          this.add.dnsNames = this.add.dnsNames.filter(x => x !== dnsName);
-        },
-        async addApplication() {
+          this.add.application.keyType = this.add.keyType;
+          this.add.application.keyName = this.add.keyName;
           this.add.sending = true;
 
           try {
@@ -421,6 +297,9 @@
 
           await this.loadUnmanagedApplications();
         },
+        onApplicationSelectionChanged() {
+          this.add.keyName = this.add.application.displayName.replaceAll(" ", "-").replaceAll(/[^\d\w\-]/g, "");
+        },
         openDetails(application) {
           this.details.application = application;
 
@@ -430,17 +309,10 @@
           this.details.sending = true;
 
           try {
-            let response = await axios.post(`/api/applications/${this.details.application.id}/renew`);
+            const response = await axios.post(`/api/applications/${this.details.application.id}/renew`);
 
-            while (true) {
-              await delay(5000);
-
-              response = await axios.get(response.headers["location"]);
-
-              if (response.status === 200) {
-                alert("The application key was successfully renewed.");
-                break;
-              }
+            if (response.status === 200) {
+              alert("The application key was successfully renewed.");
             }
           } catch (error) {
             this.handleHttpError(error);
@@ -451,14 +323,14 @@
 
           await this.refresh();
         },
-        async revokeKey() {
+        async unmanage() {
           this.details.sending = true;
 
           try {
-            const response = await axios.post(`/api/applications/${this.details.certificate.id}/revoke`);
+            const response = await axios.delete(`/api/applications/${this.details.application.id}`);
 
             if (response.status === 200) {
-              alert("The key was successfully revoked.");
+              alert(`The application '${this.details.application.displayName}' is now unmanaged.`);
             }
           } catch (error) {
             this.handleHttpError(error);
@@ -466,6 +338,8 @@
 
           this.details.sending = false;
           this.details.modalActive = false;
+
+          await this.refresh();
         },
         toUnicode(value) {
           return punycode.toUnicode(value);
@@ -508,7 +382,7 @@
       }
     };
 
-    Vue.createApp(app).mount("#app");
+    createApp(app).mount("#app");
   </script>
 </body>
 </html>
