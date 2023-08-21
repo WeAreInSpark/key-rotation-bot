@@ -23,7 +23,7 @@ public class UnmanageApplication
     }
 
     [Function($"{nameof(UnmanageApplication)}_{nameof(HttpStart)}")]
-    public async Task<HttpResponseData> HttpStart([HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route =  "api/applications/{applicationId}")] HttpRequestData req,
+    public async Task<HttpResponseData> HttpStart([HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "api/applications/{applicationId}")] HttpRequestData req,
         string applicationId)
     {
         _logger.LogInformation("C# HTTP trigger function processed a request.");
