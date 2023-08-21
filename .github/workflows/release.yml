@@ -30,23 +30,11 @@ jobs:
       run: dotnet publish -c Release -r win-x86 --self-contained false -o ./dist -p:Version=${{ steps.setup_version.outputs.version }} KeyVault.Acmebot
 
     - name: Zip Functions
-      run: |
-        7z a -mx=9 ${{ github.ref }}.zip ./dist/*
-        7z a -mx=9 latest.zip ./dist/*
+      run: 7z a -mx=9 kerbee.zip ./dist/*
 
     - name: Create ${{ github.ref }} release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          ${{ github.ref }}.zip
+          kerbee.zip
           azuredeploy.bicep
-
-    - name: Create latest release
-      uses: softprops/action-gh-release@v1
-      with:
-        name: latest
-        tag_name: latest
-        files: |
-          latest.zip
-          azuredeploy.bicep
-          
