@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: [ v* ]
+
+env:
+  DOTNET_VERSION: 7.0.x
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.setup_version.outputs.version }}
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Use .NET Core ${{ env.DOTNET_VERSION }}
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup Version
+      id: setup_version
+      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_OUTPUT
+
+    - name: Publish Functions
+      run: dotnet publish -c Release -r win-x86 --self-contained false -o ./dist -p:Version=${{ steps.setup_version.outputs.version }} KeyVault.Acmebot
+
+    - name: Zip Functions
+      run: |
+        7z a -mx=9 ${{ github.ref }}.zip ./dist/*
+        7z a -mx=9 latest.zip ./dist/*
+
+    - name: Create ${{ github.ref }} release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ${{ github.ref }}.zip
+          azuredeploy.bicep
+
+    - name: Create master release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: latest
+        tag_name: latest
+        files: |
+          latest.zip
+          azuredeploy.bicep
+          
