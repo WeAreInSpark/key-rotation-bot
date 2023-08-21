@@ -2,7 +2,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Azure.Core;
 using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
@@ -107,8 +106,17 @@ var host = new HostBuilder()
             return new SecretClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 
+        services.AddSingleton<IClaimsPrincipalAccessor>(serviceProvider =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<DeveloperOptions>>();
+            return options.Value.UseFakeAuth
+                ? new FakeClaimsPrincipalAccessor()
+                : new ClaimsPrincipalAccessor();
+        });
+
         services.AddSingleton<WebhookInvoker>();
         services.AddSingleton<ILifecycleNotificationHelper, WebhookLifeCycleNotification>();
+        services.AddSingleton<ManagedIdentityProvider>();
 
         services.AddScoped<IGraphService, GraphService>();
 
