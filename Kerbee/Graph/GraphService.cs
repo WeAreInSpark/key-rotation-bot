@@ -5,7 +5,6 @@ using System.Security.Authentication;
 using System.Threading.Tasks;
 
 using Azure.Core;
-using Azure.Identity;
 
 using Kerbee.Internal;
 using Kerbee.Options;
@@ -20,18 +19,20 @@ namespace Kerbee.Graph;
 public class GraphService : IGraphService
 {
     private readonly ILogger _logger;
+    private readonly ManagedIdentityProvider _managedIdentityProvider;
     private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
     private readonly AzureAdOptions _azureAdOptions;
     private readonly ManagedIdentityOptions _managedIdentityOptions;
-    private readonly KerbeeOptions _kerbeeOptions;
 
     public GraphService(
+        ManagedIdentityProvider managedIdentityProvider,
         IClaimsPrincipalAccessor claimsPrincipalAccessor,
         IOptions<AzureAdOptions> azureAdOptions,
         IOptions<ManagedIdentityOptions> managedIdentityOptions,
         ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger<GraphService>();
+        _managedIdentityProvider = managedIdentityProvider;
         _claimsPrincipalAccessor = claimsPrincipalAccessor;
         _azureAdOptions = azureAdOptions.Value;
         _managedIdentityOptions = managedIdentityOptions.Value;
@@ -74,7 +75,7 @@ public class GraphService : IGraphService
     {
         var client = GetClientForUser();
 
-        var managedIdentity = await GetManagedIdentity(client);
+        var managedIdentity = await _managedIdentityProvider.GetAsync();
 
         var owners = await client.Applications[applicationObjectId]
             .Owners
@@ -99,7 +100,7 @@ public class GraphService : IGraphService
     {
         var client = GetClientForUser();
 
-        var managedIdentity = await GetManagedIdentity(client);
+        var managedIdentity = await _managedIdentityProvider.GetAsync();
 
         var owners = await client.Applications[applicationObjectId]
             .Owners
@@ -119,10 +120,8 @@ public class GraphService : IGraphService
 
     public async Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer)
     {
-        var client = GetClientForManagedIdentity();
-
         // Generate a new certificate for the application
-        _ = await client
+        _ = await _managedIdentityProvider.GetClient()
             .Applications[applicationObjectId]
             .PatchAsync(new()
             {
@@ -139,27 +138,22 @@ public class GraphService : IGraphService
             });
 
         // Get the updated application in order to get the key id
-        var application = await client
+        var application = await _managedIdentityProvider.GetClient()
             .Applications[applicationObjectId]
             .GetAsync();
 
-        var keyId = application?.KeyCredentials?.FirstOrDefault()?.KeyId;
-
-        if (keyId is null)
-        {
-            throw new Exception($"Failed to add certificate to application {applicationObjectId}");
-        }
+        var keyId = (application?.KeyCredentials?.FirstOrDefault()?.KeyId)
+            ?? throw new Exception($"Failed to add certificate to application {applicationObjectId}");
 
         _logger.LogInformation("Generated new certificate for application {applicationId}", applicationObjectId);
-        return keyId.Value;
+
+        return keyId;
     }
 
     public async Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int validityInMonths)
     {
-        var client = GetClientForManagedIdentity();
-
         // Generate a new password for the application
-        var password = await client
+        var password = await _managedIdentityProvider.GetClient()
             .Applications[applicationObjectId]
             .AddPassword
             .PostAsync(new()
@@ -184,15 +178,13 @@ public class GraphService : IGraphService
 
     private async Task<IEnumerable<Application>> GetApplicationsInternalAsync()
     {
-        var client = GetClientForManagedIdentity();
-
         // Get the managed identity by app id
-        var managedIdentity = await GetManagedIdentity(client);
+        var managedIdentity = await _managedIdentityProvider.GetAsync();
 
         _logger.LogInformation("Found managed identity {displayName} with id {objectId}", managedIdentity.DisplayName, managedIdentity.Id);
 
         // Get the owned objects of the managed identity
-        var response = await client
+        var response = await _managedIdentityProvider.GetClient()
             .ServicePrincipals[managedIdentity.Id]
             .OwnedObjects
             .GraphApplication
@@ -213,23 +205,9 @@ public class GraphService : IGraphService
             .OrderBy(x => x.DisplayName);
     }
 
-    private async Task<ServicePrincipal> GetManagedIdentity(GraphServiceClient client)
-    {
-        var managedIdentities = await client
-            .ServicePrincipals
-            .GetAsync(x =>
-            {
-                x.QueryParameters.Filter = $"appId eq '{_managedIdentityOptions.ClientId}'";
-                x.QueryParameters.Select = new string[] { "id", "displayName" };
-            });
-
-        return managedIdentities?.Value?.FirstOrDefault()
-            ?? throw new Exception("Managed identity not found");
-    }
-
     private GraphServiceClient GetClientForUser()
     {
-         if (_claimsPrincipalAccessor.Principal?.Identity?.IsAuthenticated != true)
+        if (_claimsPrincipalAccessor.Principal?.Identity?.IsAuthenticated != true)
         {
             throw new AuthenticationException();
         }
@@ -239,21 +217,10 @@ public class GraphService : IGraphService
             throw new AuthenticationException();
         }
 
-        _logger.LogInformation("Access token: {accessToken}", _claimsPrincipalAccessor.AccessToken);
-
         return new GraphServiceClient(DelegatedTokenCredential.Create(
             (_, _) =>
             {
                 return new AccessToken(_claimsPrincipalAccessor.AccessToken, DateTime.UtcNow.AddDays(1));
-            }));
-    }
-
-    private GraphServiceClient GetClientForManagedIdentity()
-    {
-        return new GraphServiceClient(new DefaultAzureCredential(
-            new DefaultAzureCredentialOptions
-            {
-                TenantId = _azureAdOptions.TenantId,
             }));
     }
 }

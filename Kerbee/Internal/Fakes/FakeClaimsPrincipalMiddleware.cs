@@ -22,16 +22,14 @@ public class FakeClaimsPrincipalMiddleware : IFunctionsWorkerMiddleware
         {
             var accessor = context.InstanceServices.GetRequiredService<IClaimsPrincipalAccessor>();
 
-            if (accessor.AccessToken is not null)
+            if (accessor.AccessToken is null)
             {
-                return;
+                accessor.Principal = new ClaimsPrincipal(new ClaimsIdentity("fake"));
+
+                var scopes = new string[] { "https://graph.microsoft.com" };
+                var accessToken = await new DefaultAzureCredential().GetTokenAsync(new(scopes));
+                accessor.AccessToken = accessToken.Token;
             }
-
-            accessor.Principal = new ClaimsPrincipal(new ClaimsIdentity("fake"));
-
-            var scopes = new string[] { "https://graph.microsoft.com" };
-            var accessToken = await new DefaultAzureCredential().GetTokenAsync(new(scopes));
-            accessor.AccessToken = accessToken.Token;
         }
 
         await next(context);
