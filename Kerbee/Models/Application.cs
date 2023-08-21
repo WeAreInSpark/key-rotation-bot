@@ -11,4 +11,5 @@ public class Application
     public DateTimeOffset? ExpiresOn { get; set; }
     public string? KeyId { get; internal set; }
     public KeyType KeyType { get; set; }
+    public string? KeyName { get; set; }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Threading.Tasks;
 
 using Kerbee.Graph;
 
@@ -22,12 +23,12 @@ public class RenewKey
     }
 
     [Function($"{nameof(RenewKey)}_{nameof(HttpStart)}")]
-    public HttpResponseData HttpStart([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/applications/{applicationId}/renew")] HttpRequestData req,
+    public async Task<HttpResponseData> HttpStart([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/applications/{applicationId}/renew")] HttpRequestData req,
         string applicationId)
     {
         _logger.LogInformation("C# HTTP trigger function processed a request.");
 
-        _applicationService.RenewKeyAsync(applicationId);
+        await _applicationService.RenewKeyAsync(applicationId);
         var response = req.CreateResponse(HttpStatusCode.OK);
 
         return response;

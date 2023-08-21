@@ -18,6 +18,7 @@ public class ApplicationEntity : ITableEntity
     public string? KeyVaultKeyId { get; set; }
     public Guid? KeyId { get; set; }
     public KeyType KeyType { get; set; }
+    public string? KeyName { get; set; }
     public DateTimeOffset CreatedOn { get; set; }
     public DateTimeOffset? ExpiresOn { get; set; }
 }

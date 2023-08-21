@@ -8,7 +8,7 @@ namespace Kerbee.Graph;
 
 public interface IApplicationService
 {
-    Task AddApplicationAsync(Application application);
+    Task AddApplicationAsync(Application application, bool addOwner);
     Task DeleteApplicationAsync(Application application);
     Task RenewCertificate(Application application);
     Task RenewSecret(Application application);

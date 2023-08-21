@@ -44,7 +44,7 @@ internal class ApplicationService : IApplicationService
         _kerbeeOptions = kerbeeOptions;
     }
 
-    public async Task AddApplicationAsync(Application application)
+    public async Task AddApplicationAsync(Application application, bool addOwner)
     {
         // Create the table if it doesn't exist
         await _tableClient.CreateIfNotExistsAsync();
@@ -56,7 +56,10 @@ internal class ApplicationService : IApplicationService
 
         await _tableClient.AddEntityAsync(application.ToEntity());
 
-        await _graphService.MakeManagedIdentityOwnerOfApplicationAsync(application.Id.ToString());
+        if (addOwner)
+        {
+            await _graphService.MakeManagedIdentityOwnerOfApplicationAsync(application.Id.ToString());
+        }
     }
 
     public async Task DeleteApplicationAsync(Application application)
@@ -87,9 +90,6 @@ internal class ApplicationService : IApplicationService
 
     public async Task UnmanageApplicationAsync(string applicationId)
     {
-        // Create the table if it doesn't exist
-        await _tableClient.CreateIfNotExistsAsync();
-
         var application = (await GetApplicationsAsync()).FirstOrDefault(x => x.Id.ToString() == applicationId);
         if (application == null)
         {
@@ -98,7 +98,7 @@ internal class ApplicationService : IApplicationService
 
         await _graphService.RemoveManagedIdentityAsOwnerOfApplicationAsync(applicationId);
         await DeleteApplicationAsync(application);
-    }   
+    }
 
     public async Task UpdateApplications()
     {
@@ -124,7 +124,7 @@ internal class ApplicationService : IApplicationService
         foreach (var graphApplication in applicationsPendingManagement)
         {
             var application = graphApplication.ToModel();
-            await AddApplicationAsync(application);
+            await AddApplicationAsync(application, false);
             applications.Add(application);
         }
     }
@@ -138,7 +138,7 @@ internal class ApplicationService : IApplicationService
         policy.ValidityInMonths = _kerbeeOptions.Value.ValidityInMonths;
 
         var certificateOperation = await _certificateClient.StartCreateCertificateAsync(
-            application.Id.ToString(), policy);
+            application.KeyName, policy);
 
         var certificate = await certificateOperation.WaitForCompletionAsync();
 
@@ -174,7 +174,7 @@ internal class ApplicationService : IApplicationService
             throw new Exception("Secret creation failed");
         }
 
-        var keyVaultSecret = new KeyVaultSecret(application.Id.ToString(), azureADSecret.SecretText)
+        var keyVaultSecret = new KeyVaultSecret(application.KeyName, azureADSecret.SecretText)
         {
             Properties =
             {

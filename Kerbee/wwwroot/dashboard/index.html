@@ -72,7 +72,7 @@
             </tr>
           </tbody>
         </table>
-        <!-- Add application model -->
+        <!-- Add application modal -->
         <div class="modal" :class="{ 'is-active': add.modalActive }">
           <div class="modal-background"></div>
           <div class="modal-card">
@@ -88,7 +88,7 @@
                   <div class="field">
                     <div class="control is-expanded">
                       <div class="select is-fullwidth" :class="{ 'is-loading': add.loading }">
-                        <select v-model="add.application">
+                        <select v-model="add.application" @change="onApplicationSelectionChanged()">
                           <option disabled value="">Please select one</option>
                           <option v-for="application in add.applications" :value="application">{{ application.displayName }} ({{ application.appId }})</option>
                         </select>
@@ -123,9 +123,7 @@
                 <div class="field-body">
                   <div class="field">
                     <div class="control">
-                      <div class="text is-fullwidth">
-                        <input type="text" v-model="add.secretName" />
-                      </div>
+                      <input class="input is-normal is-fullwidth" v-model="add.keyName" />
                     </div>
                   </div>
                 </div>
@@ -163,6 +161,16 @@
                   <div class="field-body">
                     <div class="content">
                       {{ details.application.keyType }}
+                    </div>
+                  </div>
+                </div>
+                <div class="field is-horizontal">
+                  <div class="field-label">
+                    <label class="label">KeyVault secret name</label>
+                  </div>
+                  <div class="field-body">
+                    <div class="content">
+                      {{ details.application.keyName }}
                     </div>
                   </div>
                 </div>
@@ -216,7 +224,7 @@
             application: {},
             applications: [],
             keyType: "Certificate",
-            secretName: "",
+            keyName: "",
             loading: false,
             sending: false,
             modalActive: false
@@ -270,6 +278,7 @@
           }
 
           this.add.application.keyType = this.add.keyType;
+          this.add.application.keyName = this.add.keyName;
           this.add.sending = true;
 
           try {
@@ -287,6 +296,9 @@
           this.add.modalActive = true;
 
           await this.loadUnmanagedApplications();
+        },
+        onApplicationSelectionChanged() {
+          this.add.keyName = this.add.application.displayName.replaceAll(" ", "-").replaceAll(/[^\d\w\-]/g, "");
         },
         openDetails(application) {
           this.details.application = application;
