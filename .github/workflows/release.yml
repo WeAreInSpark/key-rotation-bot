@@ -29,6 +29,9 @@ jobs:
     - name: Publish Functions
       run: dotnet publish -c Release -r win-x86 --self-contained false -o ./dist -p:Version=${{ steps.setup_version.outputs.version }} KeyVault.Acmebot
 
+    - name: Build ARM template
+      run: az bicep build -f azuredeploy.bicep
+
     - name: Zip Functions
       run: 7z a -mx=9 kerbee.zip ./dist/*
 
@@ -38,3 +41,4 @@ jobs:
         files: |
           kerbee.zip
           azuredeploy.bicep
+          azuredeploy.json
