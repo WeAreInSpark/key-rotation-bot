@@ -116,6 +116,20 @@
                   </div>
                 </div>
               </div>
+              <div class="field is-horizontal">
+                <div class="field-label">
+                  <label class="label">KeyVault secret name</label>
+                </div>
+                <div class="field-body">
+                  <div class="field">
+                    <div class="control">
+                      <div class="text is-fullwidth">
+                        <input type="text" v-model="add.secretName" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </section>
             <footer class="modal-card-foot is-justify-content-flex-end">
               <button class="button is-primary" @click="addApplication" :class="{ 'is-loading': add.sending }">Add</button>
@@ -202,6 +216,7 @@
             application: {},
             applications: [],
             keyType: "Certificate",
+            secretName: "",
             loading: false,
             sending: false,
             modalActive: false
@@ -290,7 +305,6 @@
           } catch (error) {
             this.handleHttpError(error);
           }
-
 
           this.details.sending = false;
           this.details.modalActive = false;
