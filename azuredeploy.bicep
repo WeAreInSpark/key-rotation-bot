@@ -116,7 +116,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         }
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
-          value: 'https://github.com/WeAreInSpark/key-rotation-bot/archive/refs/tags/kerbee.zip'
+          value: 'https://github.com/WeAreInSpark/key-rotation-bot/releases/latest/download/kerbee.zip'
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
