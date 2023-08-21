@@ -282,21 +282,15 @@
           this.details.sending = true;
 
           try {
-            let response = await axios.post(`/api/applications/${this.details.application.id}/renew`);
+            const response = await axios.post(`/api/applications/${this.details.application.id}/renew`);
 
-            while (true) {
-              await delay(5000);
-
-              response = await axios.get(response.headers["location"]);
-
-              if (response.status === 200) {
-                alert("The application key was successfully renewed.");
-                break;
-              }
+            if (response.status === 200) {
+              alert("The application key was successfully renewed.");
             }
           } catch (error) {
             this.handleHttpError(error);
           }
+
 
           this.details.sending = false;
           this.details.modalActive = false;
