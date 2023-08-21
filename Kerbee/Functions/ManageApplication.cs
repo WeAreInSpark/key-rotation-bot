@@ -14,18 +14,18 @@ using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
-public class AddApplication
+public class ManageApplication
 {
-    private readonly ILogger<AddApplication> _logger;
+    private readonly ILogger<ManageApplication> _logger;
     private readonly IApplicationService _applicationService;
 
-    public AddApplication(IApplicationService applicationService, ILoggerFactory loggerFactory, IConfiguration configuration)
+    public ManageApplication(IApplicationService applicationService, ILoggerFactory loggerFactory, IConfiguration configuration)
     {
-        _logger = loggerFactory.CreateLogger<AddApplication>();
+        _logger = loggerFactory.CreateLogger<ManageApplication>();
         _applicationService = applicationService;
     }
 
-    [Function($"{nameof(AddApplication)}_{nameof(HttpStart)}")]
+    [Function($"{nameof(ManageApplication)}_{nameof(HttpStart)}")]
     public async Task<HttpResponseData> HttpStart(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/applications")] HttpRequestData req)
     {
@@ -33,7 +33,7 @@ public class AddApplication
 
         Guard.IsNotNull(application, nameof(application));
 
-        await _applicationService.AddApplicationAsync(application);
+        await _applicationService.AddApplicationAsync(application, true);
         await _applicationService.RenewKeyAsync(application);
 
         return req.CreateResponse(HttpStatusCode.OK);

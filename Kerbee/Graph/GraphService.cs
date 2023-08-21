@@ -107,7 +107,7 @@ public class GraphService : IGraphService
             .GetAsync();
 
         // check if applicationObjectId is an owner
-        if (owners is not null && owners.Value is not null && owners.Value.Any(x => x.Id == managedIdentity.Id))
+        if (owners?.Value is not null && owners.Value.None(x => x.Id == managedIdentity.Id))
         {
             return;
         }
