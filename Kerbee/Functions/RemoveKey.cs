@@ -23,7 +23,8 @@ namespace Kerbee.Functions
         }
 
         [Function($"{nameof(RemoveKey)}_{nameof(HttpStart)}")]
-        public async Task<HttpResponseData> HttpStart([HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req)
+        public async Task<HttpResponseData> HttpStart([HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "api/applications/remove/{applicationId}")] HttpRequestData req,
+            string applicationId)
         {
             _logger.LogInformation("C# HTTP trigger function processed a request.");
 

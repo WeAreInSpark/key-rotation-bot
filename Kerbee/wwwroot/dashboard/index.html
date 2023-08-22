@@ -199,7 +199,7 @@
             <footer class="modal-card-foot is-justify-content-flex-end">
               <button class="button is-primary" @click="renewKey" :class="{ 'is-loading': details.sending }">Renew</button>
               <button class="button is-danger" @click="unmanage" :class="{ 'is-loading': details.sending }">Unmanage</button>
-              <button class="button is-danger" @click="remove" :class="{ 'is-loading': deatils.sending }">Unmanage and Remove</button>
+              <button class="button is-danger" @click="remove" :class="{ 'is-loading': details.sending }">Remove and unmanage</button>
               <button class="button" @click="details.modalActive = false" :disabled="details.sending">Close</button>
             </footer>
           </div>
@@ -346,7 +346,7 @@
           this.details.sending = true;
 
           try {
-            const response = await axios.delete(`/api/applications/${this.details.application.id}/remove`);
+            const response = await axios.delete(`/api/applications/remove/${this.details.application.id}`);
 
             if (response.status === 200) {
               alert(`The application '${this.details.application.displayName}' was successfully removed.`);

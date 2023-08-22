@@ -223,4 +223,31 @@ internal class ApplicationService : IApplicationService
 
         await task;
     }
+
+    public async Task RemoveKeyAsync(string applicationId)
+    {
+        var application = (await GetApplicationsAsync()).FirstOrDefault(x => x.Id.ToString() == applicationId);
+        if (application == null)
+        {
+            return;
+        }
+
+        await RemoveKeyAsync(application);
+    }
+
+    public async Task RemoveKeyAsync(Application application)
+    {
+        if (application.KeyType == KeyType.Certificate)
+        {
+            await _graphService.RemoveCertificateAsync(application.Id.ToString(), new Guid(application.KeyId));
+            await _certificateClient.StartDeleteCertificateAsync(application.KeyName);
+        }
+        else if (application.KeyType == KeyType.Secret)
+        {
+            await _graphService.RemoveSecretAsync(application.Id.ToString(), new Guid(application.KeyId));
+            await _secretClient.StartDeleteSecretAsync(application.KeyName);
+        }
+
+        await UnmanageApplicationAsync(application.Id.ToString());
+    }
 }

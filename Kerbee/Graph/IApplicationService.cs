@@ -17,4 +17,6 @@ public interface IApplicationService
     Task<IEnumerable<Application>> GetApplicationsAsync(DateTime? expiryDate = null);
     Task UnmanageApplicationAsync(string applicationId);
     Task RenewKeyAsync(string applicationId);
+    Task RemoveKeyAsync(Application application);
+    Task RemoveKeyAsync(string applicationId);
 }
