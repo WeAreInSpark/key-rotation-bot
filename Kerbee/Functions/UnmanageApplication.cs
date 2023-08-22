@@ -28,7 +28,14 @@ public class UnmanageApplication
     {
         _logger.LogInformation("C# HTTP trigger function processed a request.");
 
+        var remove = req.Query["remove"];
+        if (remove?.ToLower() == "true")
+        {
+            await _applicationService.RemoveKeyAsync(applicationId);
+        }
+
         await _applicationService.UnmanageApplicationAsync(applicationId);
+
         var response = req.CreateResponse(HttpStatusCode.OK);
         return response;
     }

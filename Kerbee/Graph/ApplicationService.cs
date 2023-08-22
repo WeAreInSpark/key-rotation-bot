@@ -247,7 +247,5 @@ internal class ApplicationService : IApplicationService
             await _graphService.RemoveSecretAsync(application.Id.ToString(), new Guid(application.KeyId));
             await _secretClient.StartDeleteSecretAsync(application.KeyName);
         }
-
-        await UnmanageApplicationAsync(application.Id.ToString());
     }
 }
