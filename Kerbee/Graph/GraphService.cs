@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 using Azure.Core;
@@ -13,6 +14,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Kerbee.Graph;
 
@@ -116,6 +119,29 @@ public class GraphService : IGraphService
             .Owners[managedIdentity.Id]
             .Ref
             .DeleteAsync();
+    }
+
+    public async Task RemoveCertificateAsync(string applicationObjectId, Guid keyId)
+    {
+        var client = GetClientForUser();
+
+        var application = await client.Applications[applicationObjectId].GetAsync();
+        var key = application?.KeyCredentials?.FirstOrDefault(x => x.KeyId == keyId);
+
+        if (application is not null && key is not null)
+        {
+            application?.KeyCredentials?.Remove(key);
+            await client.Applications[application.Id.ToString()].PatchAsync(application);
+        }
+    }
+
+    public async Task RemoveSecretAsync(string applicationObjectId, Guid keyId)
+    {
+        var client = GetClientForUser();
+        await client.Applications[applicationObjectId].RemovePassword.PostAsync(new Microsoft.Graph.Applications.Item.RemovePassword.RemovePasswordPostRequestBody()
+        {
+            KeyId = keyId
+        });
     }
 
     public async Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer)
