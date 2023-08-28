@@ -19,10 +19,12 @@ param createWithKeyVault bool = true
 ])
 param keyVaultSkuName string = 'standard'
 
+#disable-next-line no-hardcoded-env-urls
 @description('Enter the base URL of an existing Key Vault. (ex. https://example.vault.azure.net)')
 param keyVaultBaseUrl string = ''
 
 var functionAppName = 'func-${appNamePrefix}-${substring(uniqueString(resourceGroup().id, deployment().name), 0, 4)}'
+var managedIdentityName = 'id-${appNamePrefix}-${substring(uniqueString(resourceGroup().id, deployment().name), 0, 4)}'
 var appServicePlanName = 'plan-${appNamePrefix}-${substring(uniqueString(resourceGroup().id, deployment().name), 0, 4)}'
 var appInsightsName = 'appi-${appNamePrefix}-${substring(uniqueString(resourceGroup().id, deployment().name), 0, 4)}'
 var workspaceName = 'log-${appNamePrefix}-${substring(uniqueString(resourceGroup().id, deployment().name), 0, 4)}'
@@ -37,7 +39,7 @@ var appInsightsEndpoints = {
 // Key Vault Certificates Officer
 var roleDefinitionId = resourceId('Microsoft.Authorization/roleDefinitions/', 'a4417e6f-fecd-4de8-b567-7b0420556985')
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
   location: location
   kind: 'Storage'
@@ -51,7 +53,12 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
   }
 }
 
-resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
+resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: managedIdentityName
+  location: location
+}
+
+resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: appServicePlanName
   location: location
   sku: {
@@ -85,12 +92,15 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
+resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp'
   identity: {
-    type: 'SystemAssigned'
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${managedIdentity.id}' : {}
+    }
   }
   properties: {
     clientAffinityEnabled: false
@@ -98,6 +108,10 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       appSettings: [
+        {
+          name: 'AZURE_CLIENT_ID'
+          value: managedIdentity.properties.clientId
+        }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: 'InstrumentationKey=${appInsights.properties.InstrumentationKey};EndpointSuffix=${appInsightsEndpoints[environment().name]}'
@@ -143,7 +157,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
   }
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = if (createWithKeyVault) {
+resource keyVault 'Microsoft.KeyVault/vaults@2023-02-01' = if (createWithKeyVault) {
   name: keyVaultName
   location: location
   properties: {
@@ -158,10 +172,10 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = if (createWithKeyVaul
 
 resource keyVault_roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (createWithKeyVault) {
   scope: keyVault
-  name: guid(keyVault.id, functionAppName, roleDefinitionId)
+  name: guid(keyVault.id, managedIdentityName, roleDefinitionId)
   properties: {
     roleDefinitionId: roleDefinitionId
-    principalId: functionApp.identity.principalId
+    principalId: managedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
 }

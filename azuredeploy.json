@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.15.31.15270",
-      "templateHash": "2042424980861646476"
+      "version": "0.20.4.51522",
+      "templateHash": "2578818247915029742"
     }
   },
   "parameters": {
@@ -55,6 +55,7 @@
   },
   "variables": {
     "functionAppName": "[format('func-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
+    "managedIdentityName": "[format('id-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
     "appServicePlanName": "[format('plan-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
     "appInsightsName": "[format('appi-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
     "workspaceName": "[format('log-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
@@ -70,7 +71,7 @@
   "resources": [
     {
       "type": "Microsoft.Storage/storageAccounts",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2023-01-01",
       "name": "[variables('storageAccountName')]",
       "location": "[parameters('location')]",
       "kind": "Storage",
@@ -84,8 +85,14 @@
       }
     },
     {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[variables('managedIdentityName')]",
+      "location": "[parameters('location')]"
+    },
+    {
       "type": "Microsoft.Web/serverfarms",
-      "apiVersion": "2022-03-01",
+      "apiVersion": "2022-09-01",
       "name": "[variables('appServicePlanName')]",
       "location": "[parameters('location')]",
       "sku": {
@@ -125,12 +132,15 @@
     },
     {
       "type": "Microsoft.Web/sites",
-      "apiVersion": "2022-03-01",
+      "apiVersion": "2022-09-01",
       "name": "[variables('functionAppName')]",
       "location": "[parameters('location')]",
       "kind": "functionapp",
       "identity": {
-        "type": "SystemAssigned"
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')))]": {}
+        }
       },
       "properties": {
         "clientAffinityEnabled": false,
@@ -139,16 +149,20 @@
         "siteConfig": {
           "appSettings": [
             {
+              "name": "AZURE_CLIENT_ID",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').clientId]"
+            },
+            {
               "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
               "value": "[format('InstrumentationKey={0};EndpointSuffix={1}', reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').InstrumentationKey, variables('appInsightsEndpoints')[environment().name])]"
             },
             {
               "name": "AzureWebJobsStorage",
-              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2022-09-01').keys[0].value, environment().suffixes.storage)]"
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-01-01').keys[0].value, environment().suffixes.storage)]"
             },
             {
               "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2022-09-01').keys[0].value, environment().suffixes.storage)]"
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-01-01').keys[0].value, environment().suffixes.storage)]"
             },
             {
               "name": "WEBSITE_CONTENTSHARE",
@@ -167,11 +181,11 @@
               "value": "dotnet-isolated"
             },
             {
-              "name": "Acmebot:VaultBaseUrl",
+              "name": "Kerbee:VaultBaseUrl",
               "value": "[if(parameters('createWithKeyVault'), format('https://{0}{1}', variables('keyVaultName'), environment().suffixes.keyvaultDns), parameters('keyVaultBaseUrl'))]"
             },
             {
-              "name": "Acmebot:Environment",
+              "name": "Kerbee:Environment",
               "value": "[environment().name]"
             }
           ],
@@ -184,13 +198,14 @@
       "dependsOn": [
         "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
         "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
       ]
     },
     {
       "condition": "[parameters('createWithKeyVault')]",
       "type": "Microsoft.KeyVault/vaults",
-      "apiVersion": "2022-07-01",
+      "apiVersion": "2023-02-01",
       "name": "[variables('keyVaultName')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -207,15 +222,15 @@
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('keyVaultName'))]",
-      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), variables('functionAppName'), variables('roleDefinitionId'))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), variables('managedIdentityName'), variables('roleDefinitionId'))]",
       "properties": {
         "roleDefinitionId": "[variables('roleDefinitionId')]",
-        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-03-01', 'full').identity.principalId]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
-        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
       ]
     }
   ],
@@ -226,11 +241,11 @@
     },
     "principalId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-03-01', 'full').identity.principalId]"
+      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.principalId]"
     },
     "tenantId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-03-01', 'full').identity.tenantId]"
+      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.tenantId]"
     },
     "keyVaultName": {
       "type": "string",
