@@ -38,4 +38,4 @@ jobs:
     - name: Create ${{ github.ref }} release
       uses: softprops/action-gh-release@v1
       with:
-        files: kerbee.zip
+        files: ./dist/kerbee.zip
