@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.20.4.51522",
-      "templateHash": "7977398331536834135"
+      "templateHash": "15897853820233060307"
     }
   },
   "parameters": {
@@ -54,13 +54,13 @@
     }
   },
   "variables": {
-    "functionAppName": "[format('func-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
-    "managedIdentityName": "[format('id-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
-    "appServicePlanName": "[format('plan-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
-    "appInsightsName": "[format('appi-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
-    "workspaceName": "[format('log-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
-    "storageAccountName": "[format('st{0}func', uniqueString(resourceGroup().id, deployment().name))]",
-    "keyVaultName": "[format('kv-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id, deployment().name), 0, 4))]",
+    "functionAppName": "[format('func-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "managedIdentityName": "[format('id-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "appServicePlanName": "[format('plan-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "appInsightsName": "[format('appi-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "workspaceName": "[format('log-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "storageAccountName": "[format('st{0}func', uniqueString(resourceGroup().id))]",
+    "keyVaultName": "[format('kv-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
     "appInsightsEndpoints": {
       "AzureCloud": "applicationinsights.azure.com",
       "AzureChinaCloud": "applicationinsights.azure.cn",
