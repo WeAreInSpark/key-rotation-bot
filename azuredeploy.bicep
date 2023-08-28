@@ -181,6 +181,6 @@ resource keyVault_roleAssignment 'Microsoft.Authorization/roleAssignments@2022-0
 }
 
 output functionAppName string = functionApp.name
-output principalId string = functionApp.identity.principalId
-output tenantId string = functionApp.identity.tenantId
+output principalId string = managedIdentity.properties.principalId
+output tenantId string = managedIdentity.properties.tenantId
 output keyVaultName string = createWithKeyVault ? keyVault.name : ''

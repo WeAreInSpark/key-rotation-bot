@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.20.4.51522",
-      "templateHash": "2578818247915029742"
+      "templateHash": "7977398331536834135"
     }
   },
   "parameters": {
@@ -241,11 +241,11 @@
     },
     "principalId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.principalId]"
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').principalId]"
     },
     "tenantId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.tenantId]"
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').tenantId]"
     },
     "keyVaultName": {
       "type": "string",
