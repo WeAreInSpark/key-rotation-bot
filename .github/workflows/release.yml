@@ -30,7 +30,10 @@ jobs:
       run: dotnet publish -c Release -r win-x86 --self-contained false -o ./dist -p:Version=${{ steps.setup_version.outputs.version }}
 
     - name: Zip Functions
-      run: 7z a -mx=9 kerbee.zip ./dist/*
+      run: |
+        pushd ./dist
+        zip -r kerbee.zip ./
+        popd
 
     - name: Create ${{ github.ref }} release
       uses: softprops/action-gh-release@v1

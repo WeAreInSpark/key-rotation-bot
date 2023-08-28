@@ -127,11 +127,11 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
           value: 'dotnet-isolated'
         }
         {
-          name: 'Acmebot:VaultBaseUrl'
+          name: 'Kerbee:VaultBaseUrl'
           value: (createWithKeyVault ? 'https://${keyVaultName}${environment().suffixes.keyvaultDns}' : keyVaultBaseUrl)
         }
         {
-          name: 'Acmebot:Environment'
+          name: 'Kerbee:Environment'
           value: environment().name
         }
       ]
