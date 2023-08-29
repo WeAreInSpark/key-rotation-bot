@@ -41,7 +41,7 @@ Finally, you can save your previous settings to enable App Service authenticatio
 
 ## Enable access tokens
 
-The Key Rotation Bot uses access tokens to access the Azure AD Graph API. The access tokens are obtained from the Azure AD v2.0 endpoint. To enable access tokens, navigate to the `Authentication` section of the application registration in the Azure Portal. Select the checkbox `Access tokens` in the `Implicit grand and hybrid flows` section and click `Save`.
+The Key Rotation Bot uses access tokens to access the Azure AD Graph API. The access tokens are obtained from the Azure AD v2.0 endpoint. To enable access tokens, navigate to the `Authentication` section of the application registration in the Azure Portal. Select the checkbox `Access tokens` in the `Implicit grant and hybrid flows` section and click `Save`.
 
 ![Enable access tokens](images/enable-access-tokens.png)
 
