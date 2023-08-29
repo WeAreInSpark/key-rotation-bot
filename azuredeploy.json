@@ -1,0 +1,255 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.20.4.51522",
+      "templateHash": "15897853820233060307"
+    }
+  },
+  "parameters": {
+    "appNamePrefix": {
+      "type": "string",
+      "maxLength": 14,
+      "metadata": {
+        "description": "The name of the function app that you wish to create."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The location of the function app that you wish to create."
+      }
+    },
+    "createWithKeyVault": {
+      "type": "bool",
+      "defaultValue": true,
+      "allowedValues": [
+        true,
+        false
+      ],
+      "metadata": {
+        "description": "If you choose true, create and configure a key vault at the same time."
+      }
+    },
+    "keyVaultSkuName": {
+      "type": "string",
+      "defaultValue": "standard",
+      "allowedValues": [
+        "standard",
+        "premium"
+      ],
+      "metadata": {
+        "description": "Specifies whether the key vault is a standard vault or a premium vault."
+      }
+    },
+    "keyVaultBaseUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Enter the base URL of an existing Key Vault. (ex. https://example.vault.azure.net)"
+      }
+    }
+  },
+  "variables": {
+    "functionAppName": "[format('func-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "managedIdentityName": "[format('id-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "appServicePlanName": "[format('plan-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "appInsightsName": "[format('appi-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "workspaceName": "[format('log-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "storageAccountName": "[format('st{0}func', uniqueString(resourceGroup().id))]",
+    "keyVaultName": "[format('kv-{0}-{1}', parameters('appNamePrefix'), substring(uniqueString(resourceGroup().id), 0, 4))]",
+    "appInsightsEndpoints": {
+      "AzureCloud": "applicationinsights.azure.com",
+      "AzureChinaCloud": "applicationinsights.azure.cn",
+      "AzureUSGovernment": "applicationinsights.us"
+    },
+    "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions/', 'a4417e6f-fecd-4de8-b567-7b0420556985')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[parameters('location')]",
+      "kind": "Storage",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "properties": {
+        "supportsHttpsTrafficOnly": true,
+        "allowBlobPublicAccess": false,
+        "minimumTlsVersion": "TLS1_2"
+      }
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[variables('managedIdentityName')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2022-09-01",
+      "name": "[variables('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      },
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2022-10-01",
+      "name": "[variables('workspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('appInsightsName')]",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "tags": {
+        "[format('hidden-link:{0}/providers/Microsoft.Web/sites/{1}', resourceGroup().id, variables('functionAppName'))]": "Resource"
+      },
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2022-09-01",
+      "name": "[variables('functionAppName')]",
+      "location": "[parameters('location')]",
+      "kind": "functionapp",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')))]": {}
+        }
+      },
+      "properties": {
+        "clientAffinityEnabled": false,
+        "httpsOnly": true,
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "siteConfig": {
+          "appSettings": [
+            {
+              "name": "AZURE_CLIENT_ID",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').clientId]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[format('InstrumentationKey={0};EndpointSuffix={1}', reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').InstrumentationKey, variables('appInsightsEndpoints')[environment().name])]"
+            },
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-01-01').keys[0].value, environment().suffixes.storage)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-01-01').keys[0].value, environment().suffixes.storage)]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "[toLower(variables('functionAppName'))]"
+            },
+            {
+              "name": "WEBSITE_RUN_FROM_PACKAGE",
+              "value": "https://github.com/WeAreInSpark/key-rotation-bot/releases/latest/download/kerbee.zip"
+            },
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "dotnet-isolated"
+            },
+            {
+              "name": "Kerbee:VaultBaseUrl",
+              "value": "[if(parameters('createWithKeyVault'), format('https://{0}{1}', variables('keyVaultName'), environment().suffixes.keyvaultDns), parameters('keyVaultBaseUrl'))]"
+            },
+            {
+              "name": "Kerbee:Environment",
+              "value": "[environment().name]"
+            }
+          ],
+          "netFrameworkVersion": "v6.0",
+          "ftpsState": "Disabled",
+          "minTlsVersion": "1.2",
+          "scmMinTlsVersion": "1.2"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('createWithKeyVault')]",
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2023-02-01",
+      "name": "[variables('keyVaultName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "tenantId": "[subscription().tenantId]",
+        "sku": {
+          "family": "A",
+          "name": "[parameters('keyVaultSkuName')]"
+        },
+        "enableRbacAuthorization": true
+      }
+    },
+    {
+      "condition": "[parameters('createWithKeyVault')]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('keyVaultName'))]",
+      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), variables('managedIdentityName'), variables('roleDefinitionId'))]",
+      "properties": {
+        "roleDefinitionId": "[variables('roleDefinitionId')]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "functionAppName": {
+      "type": "string",
+      "value": "[variables('functionAppName')]"
+    },
+    "principalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').principalId]"
+    },
+    "tenantId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-01-31').tenantId]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[if(parameters('createWithKeyVault'), variables('keyVaultName'), '')]"
+    }
+  }
+}

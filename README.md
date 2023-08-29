@@ -1,16 +1,31 @@
-# Key Rotation Bot
+<h1 align="center">
+  Key Rotation Bot (Kerbee)
+</h1>
+<p align="center">
+  Automated Azure application registration key rotation for Azure Key Vault
+</p>
+<p align="center">
+  <a href="https://github.com/WeAreInSpark/key-rotation-bot/actions/workflows/build.yml" rel="nofollow"><img src="https://github.com/WeAreInSpark/key-rotation-bot/workflows/Build/badge.svg" alt="Build" style="max-width: 100%;"></a>
+  <a href="https://github.com/WeAreInSpark/key-rotation-bot/releases/latest" rel="nofollow"><img src="https://badgen.net/github/release/WeAreInSpark/key-rotation-bot" alt="Release" style="max-width: 100%;"></a>
+</p>
 
-## Introduction
+## Motivation
 
 The best way to authenticate with Azure services is by using a "Managed Identity." However, unfortunately, there are some scenarios where that's not an option because Managed Identity isn't supported. In these scenarios, Service Principals are used. These Service Principals use a secret (password/certificate), and this secret needs to be rotated regularly. In practice, we often encounter expired secrets, sometimes with significant consequences. Rotating them is not always easy because these Service Principals can be used everywhere, and their usage is often not documented. From the Expert Teams Cloud Infra & Apps and Development, the idea has emerged to consider creating an automated process for rotating these secrets.
 
-## Requirements
+## Feature Support
 
 - Select which service principals need to be managed
 - Renew secrets of service principals x days before they expire
 - Renew certificates of service principals x days before they expire
 - Manage secrets/certificates in Azure Key Vault
 - Support multiple Key Vaults, possibly by duplicating the solution
+
+## Deployment
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FWeAreInSpark%2Fkey-rotation-bot%2Fadd-arm-file%2Fazuredeploy.json)
+
+Learn more at [Getting Started](docs/Getting-Started.md).
 
 ## Solution Approach
 
