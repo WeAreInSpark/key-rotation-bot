@@ -29,7 +29,7 @@ Learn more at [Getting Started](docs/Getting-Started.md).
 
 ## Solution Approach
 
-The solution approach is conceptually based on the [Key Vault Acmebot](https://github.com/WeAreInSpark/key-rotation-bot). The Key Vault Acmebot is a solution for centrally managing SSL certificates. At its core, it's an Azure Function that monitors certificates in a Key Vault and automatically requests (new) certificates from a certificate authority (such as Let's Encrypt) following the Acme protocol. The Key Vault Acmebot can be used via an API or the dashboard UI. The API can, for instance, be used from Azure DevOps pipelines to automatically request certificates.
+The solution approach is conceptually based on the [Key Vault Acmebot](https://github.com/shibayan/keyvault-acmebot). The Key Vault Acmebot is a solution for centrally managing SSL certificates. At its core, it's an Azure Function that monitors certificates in a Key Vault and automatically requests (new) certificates from a certificate authority (such as Let's Encrypt) following the Acme protocol. The Key Vault Acmebot can be used via an API or the dashboard UI. The API can, for instance, be used from Azure DevOps pipelines to automatically request certificates.
 
 The Key Rotation Bot (working title) functions in a similar way. Like the Key Vault Acmebot, it has an API and a dashboard UI for managing Service Principals. You deploy an instance of the Key Rotation Bot per Key Vault. Each instance of the Key Rotation Bot can manage one or more service principals.
 
