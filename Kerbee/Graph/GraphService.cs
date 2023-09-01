@@ -143,6 +143,7 @@ public class GraphService : IGraphService
     public async Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer)
     {
         // Generate a new certificate for the application
+        var kerbee = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
         _ = await _managedIdentityProvider.GetClient()
             .Applications[applicationObjectId]
             .PatchAsync(new()
@@ -151,7 +152,7 @@ public class GraphService : IGraphService
                 {
                     new KeyCredential
                     {
-                        DisplayName = "Managed by Kerbee",
+                        DisplayName = $"Managed by Kerbee ({ kerbee })",
                         Key = cer,
                         Type = "AsymmetricX509Cert",
                         Usage = "Verify",
@@ -175,6 +176,7 @@ public class GraphService : IGraphService
     public async Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int validityInMonths)
     {
         // Generate a new password for the application
+        var kerbee = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
         var password = await _managedIdentityProvider.GetClient()
             .Applications[applicationObjectId]
             .AddPassword
@@ -182,7 +184,7 @@ public class GraphService : IGraphService
             {
                 PasswordCredential = new()
                 {
-                    DisplayName = $"Managed by Kerbee",
+                    DisplayName = $"Managed by Kerbee ({kerbee})",
                     EndDateTime = DateTimeOffset.UtcNow.AddMonths(validityInMonths),
                     StartDateTime = DateTimeOffset.UtcNow,
                 }
