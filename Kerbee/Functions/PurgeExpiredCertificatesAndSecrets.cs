@@ -36,7 +36,7 @@ public class PurgeExpiredCertificatesAndSecrets
 
         var applications = await context.CallGetApplicationsActivityAsync(new object());
 
-        foreach (var application in applications.Where(x => x.KeyType == KeyType.None))
+        foreach (var application in applications)
         {
             await context.CallPurgeExpiredKeysActivityAsync(application);
         }
