@@ -296,4 +296,30 @@ internal class ApplicationService : IApplicationService
             }
         }
     }
+
+    public async Task PurgeKeys(Application application)
+    {
+        var graphApplication = await _graphService.GetApplicationAsync(application.Id.ToString());
+
+        if (graphApplication is null)
+        {
+            return;
+        }
+
+        // Remove expired secrets
+        var expiredSecrets = graphApplication.PasswordCredentials?
+            .Where(x => x.EndDateTime <= DateTime.UtcNow)
+            .Where(x => x.KeyId.HasValue)
+            .ToArray() ?? Array.Empty<Microsoft.Graph.Models.PasswordCredential>();
+
+        await Task.WhenAll(expiredSecrets.Select(x => _graphService.RemoveSecretAsync(application.Id.ToString(), x.KeyId!.Value)));
+
+        // Remove expired certificates
+        var expiredCertificates = graphApplication.KeyCredentials?
+            .Where(x => x.EndDateTime <= DateTime.UtcNow)
+            .Where(x => x.KeyId.HasValue)
+            .ToArray() ?? Array.Empty<Microsoft.Graph.Models.KeyCredential>();
+
+        await Task.WhenAll(expiredCertificates.Select(x => _graphService.RemoveCertificateAsync(application.Id.ToString(), x.KeyId!.Value)));
+    }
 }

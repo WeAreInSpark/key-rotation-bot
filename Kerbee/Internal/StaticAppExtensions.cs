@@ -20,7 +20,7 @@ internal static class StaticAppExtensions
     private static readonly PhysicalFileProvider s_fileProvider = new(Path.Combine(FunctionEnvironment.RootPath, "wwwroot"));
     private static readonly FileExtensionContentTypeProvider s_contentTypeProvider = new();
 
-    public async static Task<HttpResponseData> CreateStaticAppResponse(this HttpRequestData req, string defaultFile = "index.html", string fallbackPath = "404.html", string fallbackExclude = null)
+    public async static Task<HttpResponseData> CreateStaticAppResponse(this HttpRequestData req, string defaultFile = "index.html", string fallbackPath = "404.html", string? fallbackExclude = null)
     {
         var (_, value) = req.FunctionContext.BindingContext.BindingData.FirstOrDefault(x => x.Key == "path");
 
@@ -62,7 +62,7 @@ internal static class StaticAppExtensions
         response.Headers.Add("Last-Modified", fileInfo.LastModified.ToString("r"));
     }
 
-    private static IFileInfo GetFileInformation(string virtualPath, string fallbackPath, string fallbackExclude)
+    private static IFileInfo GetFileInformation(string virtualPath, string fallbackPath, string? fallbackExclude)
     {
         var fileInfo = s_fileProvider.GetFileInfo(virtualPath);
 

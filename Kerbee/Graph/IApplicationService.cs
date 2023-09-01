@@ -19,4 +19,5 @@ public interface IApplicationService
     Task RenewKeyAsync(string applicationId);
     Task RemoveKeyAsync(Application application);
     Task RemoveKeyAsync(string applicationId);
+    Task PurgeKeys(Application application);
 }
