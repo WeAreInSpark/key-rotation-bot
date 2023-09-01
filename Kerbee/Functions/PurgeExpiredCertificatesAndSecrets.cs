@@ -51,11 +51,6 @@ public class PurgeExpiredCertificatesAndSecrets
         _logger.LogInformation($"Started orchestration with ID = '{instanceId}'.");
     }
 
-    private readonly RetryOptions _retryOptions = new(TimeSpan.FromHours(3), 2)
-    {
-        Handle = ex => ex.InnerException?.InnerException is RetriableOrchestratorException
-    };
-
     [Function($"{nameof(PurgeExpiredCertificatesAndSecrets)}_{nameof(HttpStart)}")]
     public async Task<HttpResponseData> HttpStart(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/renew")] HttpRequestData req,
