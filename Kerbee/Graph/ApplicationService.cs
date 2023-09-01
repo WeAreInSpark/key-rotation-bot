@@ -137,6 +137,8 @@ internal class ApplicationService : IApplicationService
         var policy = CertificatePolicy.Default;
         policy.ValidityInMonths = _kerbeeOptions.Value.ValidityInMonths;
 
+        await RestoreDeletedCertificate(application.KeyName);
+
         var certificateOperation = await _certificateClient.StartCreateCertificateAsync(
             application.KeyName, policy);
 
@@ -162,6 +164,20 @@ internal class ApplicationService : IApplicationService
         await _tableClient.UpdateEntityAsync(applicationEntity, ETag.All);
     }
 
+    private async Task RestoreDeletedCertificate(string? keyName)
+    {
+        var deletedCertificates = _certificateClient.GetDeletedCertificatesAsync();
+
+        await foreach (var deletedCertificate in deletedCertificates)
+        {
+            if (deletedCertificate.Name == keyName)
+            {
+                var recoveryOperation = await _certificateClient.StartRecoverDeletedCertificateAsync(keyName);
+                _ = await recoveryOperation.WaitForCompletionAsync();
+            }
+        }
+    }
+
     public async Task RenewSecret(Application application)
     {
         _logger.LogInformation("Renewing secret for application {applicationId}", application.Id);
@@ -174,6 +190,8 @@ internal class ApplicationService : IApplicationService
             throw new Exception("Secret creation failed");
         }
 
+        await RestoreDeletedSecret(application.KeyName);
+
         var keyVaultSecret = new KeyVaultSecret(application.KeyName, azureADSecret.SecretText)
         {
             Properties =
@@ -183,12 +201,8 @@ internal class ApplicationService : IApplicationService
             }
         };
 
-        var response = await _secretClient.SetSecretAsync(keyVaultSecret);
-
-        if (response is null)
-        {
-            throw new Exception("Secret creation failed");
-        }
+        var response = await _secretClient.SetSecretAsync(keyVaultSecret)
+            ?? throw new Exception("Secret creation failed");
 
         // Update the application in the table
         var applicationEntity = application.ToEntity();
@@ -199,6 +213,21 @@ internal class ApplicationService : IApplicationService
         applicationEntity.ExpiresOn = azureADSecret.EndDateTime.Value;
 
         await _tableClient.UpdateEntityAsync(applicationEntity, ETag.All);
+    }
+
+    private async Task RestoreDeletedSecret(string? keyName)
+    {
+        // Check if a deleted version of the secret already exists
+        var deletedSecrets = _secretClient.GetDeletedSecretsAsync();
+
+        await foreach (var deletedSecret in deletedSecrets)
+        {
+            if (deletedSecret.Name == keyName)
+            {
+                var recoveryOperation = await _secretClient.StartRecoverDeletedSecretAsync(keyName);
+                _ = await recoveryOperation.WaitForCompletionAsync();
+            }
+        }
     }
 
     public async Task RenewKeyAsync(string applicationId)
@@ -226,7 +255,8 @@ internal class ApplicationService : IApplicationService
 
     public async Task RemoveKeyAsync(string applicationId)
     {
-        var application = (await GetApplicationsAsync()).FirstOrDefault(x => x.Id.ToString() == applicationId);
+        var application = (await GetApplicationsAsync())
+            .FirstOrDefault(x => x.Id.ToString() == applicationId);
         if (application == null)
         {
             return;
@@ -237,15 +267,33 @@ internal class ApplicationService : IApplicationService
 
     public async Task RemoveKeyAsync(Application application)
     {
+        if (application.KeyId is null)
+        {
+            _logger.LogWarning("Application {applicationId} does not have a key", application.Id);
+            return;
+        }
+
         if (application.KeyType == KeyType.Certificate)
         {
             await _graphService.RemoveCertificateAsync(application.Id.ToString(), new Guid(application.KeyId));
-            await _certificateClient.StartDeleteCertificateAsync(application.KeyName);
+
+            // Delete the certificate if it is still in the key vault
+            var certificate = await _certificateClient.GetCertificateAsync(application.KeyName);
+            if (certificate is not null)
+            {
+                await _certificateClient.StartDeleteCertificateAsync(application.KeyName);
+            }
         }
         else if (application.KeyType == KeyType.Secret)
         {
             await _graphService.RemoveSecretAsync(application.Id.ToString(), new Guid(application.KeyId));
-            await _secretClient.StartDeleteSecretAsync(application.KeyName);
+
+            // Delete the secret if it is still in the key vault
+            var secret = await _secretClient.GetSecretAsync(application.KeyName);
+            if (secret is not null)
+            {
+                await _secretClient.StartDeleteSecretAsync(application.KeyName);
+            }
         }
     }
 }
