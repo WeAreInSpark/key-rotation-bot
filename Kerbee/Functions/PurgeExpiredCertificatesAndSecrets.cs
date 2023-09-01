@@ -53,7 +53,7 @@ public class PurgeExpiredCertificatesAndSecrets
 
     [Function($"{nameof(PurgeExpiredCertificatesAndSecrets)}_{nameof(HttpStart)}")]
     public async Task<HttpResponseData> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/renew")] HttpRequestData req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/purge")] HttpRequestData req,
         [DurableClient] DurableTaskClient starter)
     {
         // Function input comes from the request content.
