@@ -6,8 +6,8 @@ namespace Kerbee.Internal;
 
 internal static class AppRoleExtensions
 {
-    private const string IssueCertificateAppRole = "Kerbee.IssueCertificate";
-    private const string RevokeCertificateAppRole = "Kerbee.RevokeCertificate";
+    private const string ManageApplicationAppRole = "Kerbee.ManageApplication";
+    private const string UnmanageApplicationAppRole = "Kerbee.UnmanageApplication";
 
     private static bool IsAppRoleRequired => bool.TryParse(Environment.GetEnvironmentVariable("Kerbee:AppRoleRequired"), out var result) && result;
 
@@ -18,7 +18,7 @@ internal static class AppRoleExtensions
         return roles.Contains(role);
     }
 
-    public static bool HasIssueCertificateRole(this ClaimsPrincipal claimsPrincipal) => !IsAppRoleRequired || claimsPrincipal.IsInAppRole(IssueCertificateAppRole);
+    public static bool HasIssueCertificateRole(this ClaimsPrincipal claimsPrincipal) => !IsAppRoleRequired || claimsPrincipal.IsInAppRole(ManageApplicationAppRole);
 
-    public static bool HasRevokeCertificateRole(this ClaimsPrincipal claimsPrincipal) => !IsAppRoleRequired || claimsPrincipal.IsInAppRole(RevokeCertificateAppRole);
+    public static bool HasRevokeCertificateRole(this ClaimsPrincipal claimsPrincipal) => !IsAppRoleRequired || claimsPrincipal.IsInAppRole(UnmanageApplicationAppRole);
 }

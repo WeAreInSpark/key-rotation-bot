@@ -7,12 +7,9 @@ namespace Kerbee.Internal;
 
 internal class ApplicationVersionInitializer<TStartup> : ITelemetryInitializer
 {
-    public ApplicationVersionInitializer()
-    {
-        ApplicationVersion = typeof(TStartup).Assembly
+    public ApplicationVersionInitializer() => ApplicationVersion = typeof(TStartup).Assembly
                                              .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-                                             ?.InformationalVersion;
-    }
+                                             ?.InformationalVersion ?? "1.0.0";
 
     public string ApplicationVersion { get; }
 
