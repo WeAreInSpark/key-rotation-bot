@@ -11,7 +11,8 @@
     "Kerbee:ValidityInMonths": 1,
     "Kerbee:RenewBeforeExpiryInDays": 32,
     "Developer:UseFakeAuth": true,
-    //"AzureWebJobs.RenewCertificatesAndSecrets_Timer.Disabled": true,
+    "AzureWebJobs.RenewCertificatesAndSecrets_Timer.Disabled": true,
+    "AzureWebJobs.PurgeExpiredCertificatesAndSecrets_Timer.Disabled": true,
     "AzureWebJobs.PurgeInstanceHistory_Timer.Disabled": true
   }
 }

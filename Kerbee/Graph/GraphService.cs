@@ -13,6 +13,7 @@ using Kerbee.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
+using Microsoft.Graph.Applications.Item.RemovePassword;
 using Microsoft.Graph.Models;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -24,8 +25,6 @@ public class GraphService : IGraphService
     private readonly ILogger _logger;
     private readonly ManagedIdentityProvider _managedIdentityProvider;
     private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
-    private readonly AzureAdOptions _azureAdOptions;
-    private readonly ManagedIdentityOptions _managedIdentityOptions;
 
     public GraphService(
         ManagedIdentityProvider managedIdentityProvider,
@@ -37,8 +36,6 @@ public class GraphService : IGraphService
         _logger = loggerFactory.CreateLogger<GraphService>();
         _managedIdentityProvider = managedIdentityProvider;
         _claimsPrincipalAccessor = claimsPrincipalAccessor;
-        _azureAdOptions = azureAdOptions.Value;
-        _managedIdentityOptions = managedIdentityOptions.Value;
     }
 
     public async Task<IEnumerable<Application>> GetUnmanagedApplicationsAsync()
@@ -130,15 +127,17 @@ public class GraphService : IGraphService
 
         if (application is not null && key is not null)
         {
-            application?.KeyCredentials?.Remove(key);
-            await client.Applications[application.Id.ToString()].PatchAsync(application);
+            application.KeyCredentials?.Remove(key);
+            await client.Applications[applicationObjectId.ToString()].PatchAsync(application);
         }
     }
 
     public async Task RemoveSecretAsync(string applicationObjectId, Guid keyId)
     {
         var client = GetClientForUser();
-        await client.Applications[applicationObjectId].RemovePassword.PostAsync(new Microsoft.Graph.Applications.Item.RemovePassword.RemovePasswordPostRequestBody()
+        await client.Applications[applicationObjectId]
+            .RemovePassword
+            .PostAsync(new RemovePasswordPostRequestBody()
         {
             KeyId = keyId
         });
@@ -200,6 +199,12 @@ public class GraphService : IGraphService
         _logger.LogInformation("Generated new password for application {applicationId}", applicationObjectId);
 
         return password;
+    }
+
+    public async Task<Application?> GetApplicationAsync(string applicationObjectId)
+    {
+        var client = GetClientForUser();
+        return await client.Applications[applicationObjectId].GetAsync();
     }
 
     private async Task<IEnumerable<Application>> GetApplicationsInternalAsync()

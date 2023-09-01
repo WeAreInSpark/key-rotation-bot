@@ -10,9 +10,9 @@ public class AzureAdOptions
 {
     [Required]
     [ConfigurationKeyName("WEBSITE_AUTH_OPENID_ISSUER")]
-    public Uri Issuer { get; set; }
+    public Uri Issuer { get; set; } = null!;
 
-    public string TenantId
+    public string? TenantId
     {
         get
         {
@@ -27,8 +27,8 @@ public class AzureAdOptions
 
     [Required]
     [ConfigurationKeyName("WEBSITE_AUTH_CLIENT_ID")]
-    public string ClientId { get; set; }
+    public string ClientId { get; set; } = null!;
 
     [ConfigurationKeyName("MICROSOFT_PROVIDER_AUTHENTICATION_SECRET")]
-    public string ClientSecret { get; set; }
+    public string ClientSecret { get; set; } = null!;
 }

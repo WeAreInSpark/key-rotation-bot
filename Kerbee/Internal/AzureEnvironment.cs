@@ -8,7 +8,7 @@ namespace Kerbee.Internal;
 
 public class AzureEnvironment
 {
-    public Uri AuthorityHost { get; private init; }
+    public Uri AuthorityHost { get; private init; } = null!;
     public ArmEnvironment ResourceManager { get; private init; }
 
     public static AzureEnvironment Get(string name) => s_environments[name];

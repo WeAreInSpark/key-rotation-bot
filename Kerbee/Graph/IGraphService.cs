@@ -16,4 +16,5 @@ public interface IGraphService
     Task RemoveManagedIdentityAsOwnerOfApplicationAsync(string applicationObjectId);
     Task RemoveCertificateAsync(string applicationObjectId, Guid keyId);
     Task RemoveSecretAsync(string applicationObjectId, Guid keyId);
+    Task<Application?> GetApplicationAsync(string applicationObjectId);
 }
