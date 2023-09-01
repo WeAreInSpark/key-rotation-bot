@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Authentication;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 using Azure.Core;
@@ -15,8 +14,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 using Microsoft.Graph.Applications.Item.RemovePassword;
 using Microsoft.Graph.Models;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Kerbee.Graph;
 
@@ -138,9 +135,9 @@ public class GraphService : IGraphService
         await client.Applications[applicationObjectId]
             .RemovePassword
             .PostAsync(new RemovePasswordPostRequestBody()
-        {
-            KeyId = keyId
-        });
+            {
+                KeyId = keyId
+            });
     }
 
     public async Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer)

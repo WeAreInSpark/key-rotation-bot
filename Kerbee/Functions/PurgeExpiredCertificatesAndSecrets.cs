@@ -13,7 +13,6 @@ using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Graph.Drives.Item.Items.Item.Workbook.Functions.Rank_Avg;
 
 namespace Kerbee.Functions;
 
