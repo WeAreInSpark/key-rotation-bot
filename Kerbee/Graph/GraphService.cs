@@ -22,17 +22,18 @@ public class GraphService : IGraphService
     private readonly ILogger _logger;
     private readonly ManagedIdentityProvider _managedIdentityProvider;
     private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
+    private readonly IOptions<WebsiteOptions> _websiteOptions;
 
     public GraphService(
         ManagedIdentityProvider managedIdentityProvider,
         IClaimsPrincipalAccessor claimsPrincipalAccessor,
-        IOptions<AzureAdOptions> azureAdOptions,
-        IOptions<ManagedIdentityOptions> managedIdentityOptions,
+        IOptions<WebsiteOptions> websiteOptions,
         ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger<GraphService>();
         _managedIdentityProvider = managedIdentityProvider;
         _claimsPrincipalAccessor = claimsPrincipalAccessor;
+        _websiteOptions = websiteOptions;
     }
 
     public async Task<IEnumerable<Application>> GetUnmanagedApplicationsAsync()
@@ -140,43 +141,56 @@ public class GraphService : IGraphService
             });
     }
 
-    public async Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer)
+    public async Task AddCertificateAsync(string applicationObjectId, byte[] cer, params string[] keysToReplace)
     {
-        // Generate a new certificate for the application
-        var kerbee = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
-        _ = await _managedIdentityProvider.GetClient()
+        // Get the existing application in order to add a new certificate without removing the existing ones
+        // Explicitly select keyCredentials in order to get the public key details
+        var application = await _managedIdentityProvider.GetClient()
             .Applications[applicationObjectId]
-            .PatchAsync(new()
-            {
-                KeyCredentials = new()
+            .GetAsync(x => x.QueryParameters.Select = new string[] { "id", "appId", "keyCredentials" })
+            ?? throw new Exception($"Failed to get application {applicationObjectId}");
+
+        var keyCredentials = (application.KeyCredentials ?? new())
+            .Where(x => x.CustomKeyIdentifier is null || keysToReplace.Contains(Convert.ToBase64String(x.CustomKeyIdentifier)) == false)
+            .Select(x =>
+                new KeyCredential()
                 {
-                    new KeyCredential
+                    DisplayName = x.DisplayName,
+                    Key = x.Key,
+                    Type = x.Type,
+                    Usage = x.Usage,
+                })
+            .Union(
+                new List<KeyCredential>()
+                {
+                    new()
                     {
-                        DisplayName = $"Managed by Kerbee ({ kerbee })",
+                        DisplayName = $"Managed by Kerbee ({_websiteOptions.Value.SiteName})",
                         Key = cer,
                         Type = "AsymmetricX509Cert",
                         Usage = "Verify",
                     }
                 }
+            )
+            .ToList();
+
+        // Generate a new certificate for the application
+        _ = await _managedIdentityProvider.GetClient()
+            .Applications[applicationObjectId]
+            .PatchAsync(new()
+            {
+                KeyCredentials = keyCredentials
             });
 
         // Get the updated application in order to get the key id
-        var application = await _managedIdentityProvider.GetClient()
-            .Applications[applicationObjectId]
-            .GetAsync();
-
-        var keyId = (application?.KeyCredentials?.FirstOrDefault()?.KeyId)
-            ?? throw new Exception($"Failed to add certificate to application {applicationObjectId}");
+        application = await GetApplicationAsync(applicationObjectId);
 
         _logger.LogInformation("Generated new certificate for application {applicationId}", applicationObjectId);
-
-        return keyId;
     }
 
     public async Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int validityInMonths)
     {
         // Generate a new password for the application
-        var kerbee = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME");
         var password = await _managedIdentityProvider.GetClient()
             .Applications[applicationObjectId]
             .AddPassword
@@ -184,7 +198,7 @@ public class GraphService : IGraphService
             {
                 PasswordCredential = new()
                 {
-                    DisplayName = $"Managed by Kerbee ({kerbee})",
+                    DisplayName = $"Managed by Kerbee ({_websiteOptions.Value.SiteName})",
                     EndDateTime = DateTimeOffset.UtcNow.AddMonths(validityInMonths),
                     StartDateTime = DateTimeOffset.UtcNow,
                 }

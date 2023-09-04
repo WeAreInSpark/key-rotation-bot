@@ -12,7 +12,7 @@ public interface IGraphService
     Task<IEnumerable<Application>> GetApplicationsAsync();
     Task<IEnumerable<Application>> GetUnmanagedApplicationsAsync();
     Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int ValidityInMonths);
-    Task<Guid> AddCertificateAsync(string applicationObjectId, byte[] cer);
+    Task AddCertificateAsync(string applicationObjectId, byte[] cer, params string[] keysToReplace);
     Task RemoveManagedIdentityAsOwnerOfApplicationAsync(string applicationObjectId);
     Task RemoveCertificateAsync(string applicationObjectId, Guid keyId);
     Task RemoveSecretAsync(string applicationObjectId, Guid keyId);

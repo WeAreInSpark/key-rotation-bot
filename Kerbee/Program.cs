@@ -57,6 +57,10 @@ var host = new HostBuilder()
                 .Bind(context.Configuration)
                 .ValidateDataAnnotations();
 
+        services.AddOptions<WebsiteOptions>()
+                .Bind(context.Configuration)
+                .ValidateDataAnnotations();
+
         services.AddOptions<DeveloperOptions>()
                 .Bind(context.Configuration.GetSection(DeveloperOptions.Developer))
                 .ValidateDataAnnotations();
