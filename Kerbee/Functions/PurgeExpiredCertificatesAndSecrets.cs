@@ -1,10 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
-using DurableTask.Core;
-
-using Kerbee.Models;
 using Kerbee.Options;
 
 using Microsoft.Azure.Functions.Worker;
