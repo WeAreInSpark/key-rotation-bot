@@ -28,7 +28,7 @@ public class RenewKey
     {
         _logger.LogInformation("C# HTTP trigger function processed a request.");
 
-        await _applicationService.RenewKeyAsync(applicationId);
+        await _applicationService.RenewKeyAsync(applicationId, replaceCurrent: true);
         var response = req.CreateResponse(HttpStatusCode.OK);
 
         return response;

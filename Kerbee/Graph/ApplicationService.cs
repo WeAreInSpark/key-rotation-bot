@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 using Azure;
@@ -129,7 +130,7 @@ internal class ApplicationService : IApplicationService
         }
     }
 
-    public async Task RenewCertificate(Application application)
+    public async Task RenewCertificate(Application application, bool replaceCurrent)
     {
         _logger.LogInformation("Renewing certificate for application {applicationId}", application.Id);
 
@@ -150,14 +151,20 @@ internal class ApplicationService : IApplicationService
             throw new Exception("Certificate creation failed");
         }
 
+        var x509Certificate = new X509Certificate2(certificate.Value.Cer);
+
         // Add the certificate to the application in the graph
-        var keyId = await _graphService.AddCertificateAsync(application.Id.ToString(), certificate.Value.Cer);
+        // Replace the current certificate if requested
+        var keysToReplace = replaceCurrent && application.KeyId is not null
+            ? new string[] { application.KeyId }
+            : Array.Empty<string>();
+        await _graphService.AddCertificateAsync(application.Id.ToString(), certificate.Value.Cer, keysToReplace);
 
         // Update the application in the table
         var applicationEntity = application.ToEntity();
         applicationEntity.KeyType = KeyType.Certificate;
         applicationEntity.KeyVaultKeyId = certificate.Value.KeyId.ToString();
-        applicationEntity.KeyId = keyId;
+        applicationEntity.KeyId = x509Certificate.Thumbprint;
         applicationEntity.CreatedOn = certificate.Value.Properties.CreatedOn.Value;
         applicationEntity.ExpiresOn = certificate.Value.Properties.ExpiresOn.Value;
 
@@ -178,9 +185,15 @@ internal class ApplicationService : IApplicationService
         }
     }
 
-    public async Task RenewSecret(Application application)
+    public async Task RenewSecret(Application application, bool replaceCurrent)
     {
         _logger.LogInformation("Renewing secret for application {applicationId}", application.Id);
+
+        // Delete the current secret if requested
+        if (replaceCurrent && application.KeyId is not null)
+        {
+            await _graphService.RemoveSecretAsync(application.Id.ToString(), Guid.Parse(application.KeyId));
+        }
 
         // Add the secret to the application in the graph
         var azureADSecret = await _graphService.GenerateSecretAsync(application.Id.ToString(), _kerbeeOptions.Value.ValidityInMonths);
@@ -208,7 +221,7 @@ internal class ApplicationService : IApplicationService
         var applicationEntity = application.ToEntity();
         applicationEntity.KeyType = KeyType.Secret;
         applicationEntity.KeyVaultKeyId = response.Value.Id.ToString();
-        applicationEntity.KeyId = azureADSecret.KeyId;
+        applicationEntity.KeyId = azureADSecret.KeyId.ToString();
         applicationEntity.CreatedOn = azureADSecret.StartDateTime.Value;
         applicationEntity.ExpiresOn = azureADSecret.EndDateTime.Value;
 
@@ -230,23 +243,24 @@ internal class ApplicationService : IApplicationService
         }
     }
 
-    public async Task RenewKeyAsync(string applicationId)
+    public async Task RenewKeyAsync(string applicationId, bool replaceCurrent = false)
     {
-        var application = (await GetApplicationsAsync()).FirstOrDefault(x => x.Id.ToString() == applicationId);
+        var application = (await GetApplicationsAsync())
+            .FirstOrDefault(x => x.Id.ToString() == applicationId);
         if (application == null)
         {
             return;
         }
 
-        await RenewKeyAsync(application);
+        await RenewKeyAsync(application, replaceCurrent);
     }
 
-    public async Task RenewKeyAsync(Application application)
+    public async Task RenewKeyAsync(Application application, bool replaceCurrent = false)
     {
         var task = application.KeyType switch
         {
-            KeyType.Certificate => RenewCertificate(application),
-            KeyType.Secret => RenewSecret(application),
+            KeyType.Certificate => RenewCertificate(application, replaceCurrent),
+            KeyType.Secret => RenewSecret(application, replaceCurrent),
             _ => Task.CompletedTask
         };
 

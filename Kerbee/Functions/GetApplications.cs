@@ -28,6 +28,7 @@ public class GetApplications
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/applications")] HttpRequestData req,
         [DurableClient] DurableTaskClient client)
     {
+        await _applicationService.UpdateApplications();
         var applications = await _applicationService.GetApplicationsAsync();
 
         var response = req.CreateResponse(HttpStatusCode.OK);

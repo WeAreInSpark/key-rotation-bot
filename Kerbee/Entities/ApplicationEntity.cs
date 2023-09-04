@@ -16,7 +16,7 @@ public class ApplicationEntity : ITableEntity
     public string DisplayName { get; set; } = null!;
     public Guid AppId { get; set; }
     public string? KeyVaultKeyId { get; set; }
-    public Guid? KeyId { get; set; }
+    public string? KeyId { get; set; }
     public KeyType KeyType { get; set; }
     public string? KeyName { get; set; }
     public DateTimeOffset CreatedOn { get; set; }
