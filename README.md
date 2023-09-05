@@ -11,15 +11,15 @@
 
 ## Motivation
 
-The best way to authenticate with Azure services is by using a "Managed Identity." However, unfortunately, there are some scenarios where that's not an option because Managed Identity isn't supported. In these scenarios, Service Principals are used. These Service Principals use a secret (password/certificate), and this secret needs to be rotated regularly. In practice, we often encounter expired secrets, sometimes with significant consequences. Rotating them is not always easy because these Service Principals can be used everywhere, and their usage is often not documented. From the Expert Teams Cloud Infra & Apps and Development, the idea has emerged to consider creating an automated process for rotating these secrets.
+The best way to authenticate with Azure services is by using a "Managed Identity." However, there are some scenarios where that's not an option because Managed Identity isn't supported. In these scenarios, Applications are used. These Applications use a key (secret/certificate), and this key needs to be rotated regularly. In practice, keys often expire, sometimes with significant consequences. Rotating keys is not always easy because these Applications can be used everywhere, and their usage is often not documented. Kerbee is a tool to remediate this problem by automating the process for rotating these keys.
 
 ## Feature Support
 
-- Select which service principals need to be managed
-- Renew secrets of service principals x days before they expire
-- Renew certificates of service principals x days before they expire
+- Select which Applications need to be managed
+- Renew secrets of Applications x days before they expire
+- Renew certificates of Applications x days before they expire
 - Manage secrets/certificates in Azure Key Vault
-- Support multiple Key Vaults, possibly by duplicating the solution
+- Perform operations via the dashboard UI or API
 
 ## Deployment
 
@@ -29,25 +29,23 @@ Learn more at [Getting Started](docs/Getting-Started.md).
 
 ## Solution Approach
 
-The solution approach is conceptually based on the [Key Vault Acmebot](https://github.com/shibayan/keyvault-acmebot). The Key Vault Acmebot is a solution for centrally managing SSL certificates. At its core, it's an Azure Function that monitors certificates in a Key Vault and automatically requests (new) certificates from a certificate authority (such as Let's Encrypt) following the Acme protocol. The Key Vault Acmebot can be used via an API or the dashboard UI. The API can, for instance, be used from Azure DevOps pipelines to automatically request certificates.
+The solution approach is conceptually based on the [Key Vault Acmebot](https://github.com/shibayan/keyvault-acmebot). The Key Vault Acmebot is a solution for centrally managing SSL certificates. At its core, it's an Azure Function that monitors certificates in a Key Vault and automatically requests (new) certificates from a certificate authority (such as Let's Encrypt) following the Acme protocol. The Key Vault Acmebot can be used via an API or the dashboard UI. The API can, for instance, be used from GitHub Actions to automatically request certificates.
 
-The Key Rotation Bot (working title) functions in a similar way. Like the Key Vault Acmebot, it has an API and a dashboard UI for managing Service Principals. You deploy an instance of the Key Rotation Bot per Key Vault. Each instance of the Key Rotation Bot can manage one or more service principals.
+Kerbee functions in a similar way. Like the Key Vault Acmebot, it has an API and a dashboard UI for managing Applications. You deploy an instance of the Key Rotation Bot per Key Vault. Each instance of the Key Rotation Bot can manage one or more Applications.
 
-### Onboarding Service Principals for Management
+### Onboarding Applications for Management
 
-The Key Rotation Bot manages the certificates and secrets of Service Principals for which it is the owner. The identity of the Key Rotation Bot is determined through a Managed Identity (System or User assigned) or a Service Principal. Managed Identity is preferred, but there are scenarios where the Service Principals live in a different tenant than the Key Rotation Bot. This is the case with, for example, the IURCSC tenant. In this latter case, the Key Rotation Bot will also need to manage its own Service Principal.
+The Key Rotation Bot manages the certificates and secrets of Applications for which it is the owner. The identity of the Key Rotation Bot is determined through a Managed Identity (System or User assigned) or a Application. Managed Identity is preferred, but there are scenarios where the Applications live in a different tenant than the Key Rotation Bot. In this latter case, the Key Rotation Bot will also need to manage its own Application. You need to make sure to set this up yourselves.
 
-Onboarding a Service Principal for management means making the Key Rotation Bot its owner. Additionally, a new certificate or secret is added to the Service Principal and the Key Vault. Onboarding can be done via the API or the dashboard UI. The identity performing the onboarding must have sufficient permissions to change the ownership of the Service Principal. This means that the identity itself is the owner of the Service Principal or has roles like [Application Administrator](https://learn.microsoft.com/en-us/azure/active-directory/roles/permissions-reference#application-administrator).
+Onboarding a Application for management means making the Key Rotation Bot its owner. Additionally, a new certificate or secret is added to the Application and the Key Vault. Onboarding can be done via the API or the dashboard UI. The identity performing the onboarding must have sufficient permissions to change the ownership of the Application. This means that the identity itself is the owner of the Application or has roles like [Application Administrator](https://learn.microsoft.com/en-us/azure/active-directory/roles/permissions-reference#application-administrator).
 
 #### Via Dashboard UI
 
-- Click 'Add Service Principal,' a dialog appears
-- Type a few letters to filter the list and find the Service Principal
-
-![image.png](docs/images/add-service-principal.png)
-- Select the Service Principal and click 'Add'
+- Click 'Manage,' a dialog appears
+- Select the Application and click 'Add'
+![Manage application](docs/images/add-application.png)
 - Optionally change the key type from certificate to secret. The default is certificate.
-- The dashboard UI calls the API to add the Service Principal
+- The dashboard UI calls the API to add the Application
 
 #### Via the API
 
@@ -62,15 +60,24 @@ Authorization: Bearer ...
 }
 ```
 
-The API uses the [Add owner](https://learn.microsoft.com/en-us/graph/api/application-post-owners?view=graph-rest-1.0&tabs=http) operation of the Azure AD Graph API to establish the Key Rotation Bot as an owner.
+The API uses the [Add owner](https://learn.microsoft.com/en-us/graph/api/application-post-owners?view=graph-rest-1.0&tabs=http) operation of the Azure AD Graph API to establish Kerbee as an owner.
 
-### Overview of Managed Service Principals
+### Overview of Managed Applications
 
-An overview of managed Service Principals can be obtained through the API or the dashboard UI. The overview is similar to the `Owned applications` section in Azure AD.
+An overview of managed Applications can be obtained through the API or the dashboard UI. The overview is similar to the `Owned applications` section in Azure AD.
 
-![image.png](docs/images/list-service-principals.png)
+![List applications](docs/images/list-applications.png)
 
 To generate this overview, the [List applications](https://learn.microsoft.com/en-us/graph/api/application-list?view=graph-rest-1.0&tabs=http) operation of the Azure AD Graph API is employed.
+
+### Managing Applications
+
+There are a few options for managing the applications by clicking on the `Details` button:
+- `Renew` - Renew the certificate or secret of the Application, which will replace the currently managed certificate or secret.
+- `Unmanage` - Remove the Application from management. This will _not_ remove the certificate or secret from the Application and the Key Vault.
+- `Remove and unmanage` - Remove the Application from management and remove the certificate or secret from the Application and the Key Vault.
+
+![Application details](docs/images/application-details.png)
 
 ## Managing Certificates and Secrets
 
@@ -82,35 +89,30 @@ The Key Rotation Bot performs the following management tasks on a daily basis:
 
 ```mermaid
 flowchart TD
-   Start((Start)) --> B[For each certificate/secret]
+   Start((Start)) --> B[For each application]
+   B --> C{Has a certificate/secret}
    B --> C{Expires within x days?}
        --> D[No]
-       --> End(((End)))
+       --> E[Set default key type]
+       --> F
    
-     C --> E[Yes]
-       --> F[Find Service Principal]
-       --> G{Exists?}
-         --> H[No] 
-         --> I{{Send failure message}}
-         --> End
-   
-       G --> J[Yes]
-         --> K[Generate certificate/secret]
-         --> L[Add certificate/secret to Service Principal]
-         --> M[Add certificate/secret to Key Vault]
-         --> N{{Send success message}}
-         --> End
+     C --> F[Yes]
+       --> G[Generate certificate/secret]
+       --> H[Add certificate/secret to Application]
+       --> I[Add certificate/secret to Key Vault]
+       --> J{{Send success message}}
+       --> End
 ```
 
-- All certificates and secrets related to Service Principals in the Key Vault are reviewed.
-- For each certificate and secret, it is checked whether the expiration date is within x days.
-- For each certificate and secret meeting that condition, the corresponding Service Principal is looked up.
-- If found, a new certificate/secret is generated, added to the Service Principal, and stored in the Key Vault.
+- All applications owned by Kerbee are reviewed.
+- For each application, it is checked whether the expiration date of the certificate or secret is within x days.
+- For each application meeting that condition a new certificate/secret is generated, added to the Application, and stored in the Key Vault.
+- If there's no certificate or secret available for the application, the default key type is used (certificate).
 
 ### Remove Certificates and Secrets
 
-For all certificates and secrets that have expired, it is checked whether there is a new valid certificate or secret. If not, a warning is sent. If yes, the certificate or secret is removed from the Service Principal and from the Key Vault.
+All certificates and secrets of the managed applications that have expired the certificate or secret is removed from the Application.
 
-### Webhooks
+### Webhooks (_not yet implemented_)
 
 A webhook can be configured to send messages to Teams, for example, when the process succeeds or fails.
