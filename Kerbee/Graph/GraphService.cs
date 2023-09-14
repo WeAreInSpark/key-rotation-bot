@@ -122,7 +122,7 @@ public class GraphService : IGraphService
 
         var application = await client.Applications[applicationObjectId].GetAsync();
         var key = application?.KeyCredentials?
-            .Where(x=>x.CustomKeyIdentifier is not null)
+            .Where(x => x.CustomKeyIdentifier is not null)
             .FirstOrDefault(x => Convert.ToBase64String(x.CustomKeyIdentifier!) == keyId);
 
         if (application is not null && key is not null)
