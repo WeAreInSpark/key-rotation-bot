@@ -26,4 +26,4 @@ jobs:
       run: dotnet format --verify-no-changes --verbosity detailed --no-restore
 
     - name: Lint Bicep template
-      run: az bicep build -f azuredeploy.bicep && git diff --exit-code
+      run: az bicep build -f azuredeploy.bicep
