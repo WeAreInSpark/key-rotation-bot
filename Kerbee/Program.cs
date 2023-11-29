@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -22,10 +23,6 @@ using Microsoft.Extensions.Options;
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(builder =>
     {
-        builder
-            .AddApplicationInsights()
-            .AddApplicationInsightsLogger();
-
         builder.UseWhen<ClaimsPrincipalMiddleware>(context =>
         {
             var options = context.InstanceServices.GetRequiredService<IOptions<DeveloperOptions>>();
@@ -44,6 +41,21 @@ var host = new HostBuilder()
     })
     .ConfigureServices((context, services) =>
     {
+        services.AddApplicationInsightsTelemetryWorkerService();
+        services.ConfigureFunctionsApplicationInsights();
+        services.Configure<LoggerFilterOptions>(options =>
+        {
+            // The Application Insights SDK adds a default logging filter that instructs ILogger to capture only Warning and more severe logs. Application Insights requires an explicit override.
+            // Log levels can also be configured using appsettings.json. For more information, see https://learn.microsoft.com/en-us/azure/azure-monitor/app/worker-service#ilogger-logs
+            var toRemove = options.Rules.FirstOrDefault(rule => rule.ProviderName
+                == "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider");
+
+            if (toRemove is not null)
+            {
+                options.Rules.Remove(toRemove);
+            }
+        });
+
         // Add Options
         services.AddOptions<KerbeeOptions>()
                 .Bind(context.Configuration.GetSection(KerbeeOptions.Kerbee))
