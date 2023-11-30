@@ -204,11 +204,11 @@ public class GraphService : IGraphService
                 StartDateTime = DateTimeOffset.UtcNow,
             }
         };
-        const int maxRetries = 3;
+        const int maxRetries = 10;
         var retryConfig = new RetryHandlerOption()
         {
             MaxRetry = maxRetries,
-            Delay = 3,
+            Delay = 6,
             ShouldRetry = (delay, attempt, httpResponse) =>
             {
                 if (httpResponse?.StatusCode == System.Net.HttpStatusCode.Unauthorized) { return false; }
