@@ -123,30 +123,18 @@ public class GraphService : IGraphService
         _logger.LogInformation("Managed identity {directoryObjectId} is owner of application {applicationObjectId}", managedIdentity.Id, applicationObjectId);
     }
 
-    private async Task<bool> IsApplicationOwnerAsync(string applicationObjectId, string? directoryObjectId)
-    {
-        var client = GetClientForUser();
-
-        var owners = await client.Applications[applicationObjectId]
-            .Owners
-            .GetAsync();
-
-        return owners?.Value is not null
-            && owners.Value.Any(x => x.Id == directoryObjectId);
-    }
-
     public async Task RemoveManagedIdentityAsOwnerOfApplicationAsync(string applicationObjectId)
     {
         var client = GetClientForUser();
 
         var managedIdentity = await _managedIdentityProvider.GetAsync();
 
-        var owners = await client.Applications[applicationObjectId]
-            .Owners
-            .GetAsync();
+        if (managedIdentity is null)
+        {
+            return;
+        }
 
-        // check if applicationObjectId is an owner
-        if (owners?.Value is not null && owners.Value.None(x => x.Id == managedIdentity.Id))
+        if (!await IsApplicationOwnerAsync(applicationObjectId, managedIdentity.Id))
         {
             return;
         }
@@ -155,6 +143,24 @@ public class GraphService : IGraphService
             .Owners[managedIdentity.Id]
             .Ref
             .DeleteAsync();
+
+        // Wait for the application to be an owner
+        var retryCount = 0;
+        while (true)
+        {
+            if (!await IsApplicationOwnerAsync(applicationObjectId, managedIdentity.Id))
+            {
+                break;
+            }
+
+            if (retryCount > 20)
+            {
+                throw new Exception($"Failed to remove managed identity {managedIdentity.DisplayName} as owner of application {applicationObjectId}");
+            }
+
+            retryCount++;
+            await Task.Delay(2000);
+        }
     }
 
     public async Task RemoveCertificateAsync(string applicationObjectId, Guid keyId)
@@ -326,5 +332,17 @@ public class GraphService : IGraphService
             {
                 return new AccessToken(_claimsPrincipalAccessor.AccessToken, DateTime.UtcNow.AddDays(1));
             }));
+    }
+
+    private async Task<bool> IsApplicationOwnerAsync(string applicationObjectId, string? directoryObjectId)
+    {
+        var client = GetClientForUser();
+
+        var owners = await client.Applications[applicationObjectId]
+            .Owners
+            .GetAsync();
+
+        return owners?.Value is not null
+            && owners.Value.Any(x => x.Id == directoryObjectId);
     }
 }
