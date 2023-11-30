@@ -7,15 +7,12 @@ using Azure.Identity;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Middleware;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Internal.Fakes;
 
 public class FakeClaimsPrincipalMiddleware : IFunctionsWorkerMiddleware
 {
-    public FakeClaimsPrincipalMiddleware()
-    {
-    }
-
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {
         if (context.FunctionDefinition.InputBindings.Values.Any(x => x.Type == "httpTrigger"))

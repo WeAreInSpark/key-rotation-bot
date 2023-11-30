@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -22,9 +23,7 @@ using Microsoft.Extensions.Options;
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(builder =>
     {
-        builder
-            .AddApplicationInsights()
-            .AddApplicationInsightsLogger();
+        builder.UseMiddleware<AzureEventSourceLogForwarderMiddleware>();
 
         builder.UseWhen<ClaimsPrincipalMiddleware>(context =>
         {
@@ -44,6 +43,21 @@ var host = new HostBuilder()
     })
     .ConfigureServices((context, services) =>
     {
+        services.AddApplicationInsightsTelemetryWorkerService();
+        services.ConfigureFunctionsApplicationInsights();
+        services.Configure<LoggerFilterOptions>(options =>
+        {
+            // The Application Insights SDK adds a default logging filter that instructs ILogger to capture only Warning and more severe logs. Application Insights requires an explicit override.
+            // Log levels can also be configured using appsettings.json. For more information, see https://learn.microsoft.com/en-us/azure/azure-monitor/app/worker-service#ilogger-logs
+            var toRemove = options.Rules.FirstOrDefault(rule => rule.ProviderName
+                == "Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider");
+
+            if (toRemove is not null)
+            {
+                options.Rules.Remove(toRemove);
+            }
+        });
+
         // Add Options
         services.AddOptions<KerbeeOptions>()
                 .Bind(context.Configuration.GetSection(KerbeeOptions.Kerbee))
@@ -89,24 +103,31 @@ var host = new HostBuilder()
         services.AddSingleton(provider =>
         {
             var environment = provider.GetRequiredService<AzureEnvironment>();
-            var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
-            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            var options = new DefaultAzureCredentialOptions
             {
                 AuthorityHost = environment.AuthorityHost
-            });
+            };
+            options.Diagnostics.IsAccountIdentifierLoggingEnabled = true;
+            return options;
+        });
 
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<DefaultAzureCredentialOptions>();
+            return new DefaultAzureCredential(options);
+        });
+
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
+            var credential = provider.GetRequiredService<DefaultAzureCredential>();
             return new CertificateClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 
         services.AddSingleton(provider =>
         {
-            var environment = provider.GetRequiredService<AzureEnvironment>();
             var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
-            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-            {
-                AuthorityHost = environment.AuthorityHost
-            });
-
+            var credential = provider.GetRequiredService<DefaultAzureCredential>();
             return new SecretClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 

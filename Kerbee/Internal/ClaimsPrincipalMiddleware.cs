@@ -36,13 +36,14 @@ public class ClaimsPrincipalMiddleware : IFunctionsWorkerMiddleware
         {
             // set the access token on the accessor from DI
             accessor.AccessToken = accessTokenHeader.FirstOrDefault();
-            _logger.LogInformation("Found x-ms-token-aad-access-token header: {AccessToken}", accessor.AccessToken);
+            _logger.LogInformation("Found x-ms-token-aad-access-token header");
         }
 
         if (requestData?.Headers.TryGetValues("Authorization", out var authorizationHeader) == true)
         {
             // set the access token on the accessor from DI
             accessor.AccessToken = authorizationHeader.FirstOrDefault()?.ToString().Substring("Bearer ".Length);
+            _logger.LogInformation("Found Authorization header");
         }
 
         if (requestData?.ParsePrincipal() is ClaimsPrincipal principal)
