@@ -12,8 +12,11 @@ using Kerbee.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Graph;
+using Microsoft.Graph.Applications.Item.AddPassword;
 using Microsoft.Graph.Applications.Item.RemovePassword;
 using Microsoft.Graph.Models;
+using Microsoft.Kiota.Abstractions;
+using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 
 namespace Kerbee.Graph;
 
@@ -191,18 +194,35 @@ public class GraphService : IGraphService
     public async Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int validityInMonths)
     {
         // Generate a new password for the application
-        var password = await _managedIdentityProvider.GetClient()
-            .Applications[applicationObjectId]
-            .AddPassword
-            .PostAsync(new()
+        var request = _managedIdentityProvider.GetClient().Applications[applicationObjectId].AddPassword;
+        var body = new AddPasswordPostRequestBody()
+        {
+            PasswordCredential = new()
             {
-                PasswordCredential = new()
-                {
-                    DisplayName = $"Managed by Kerbee ({_websiteOptions.Value.SiteName})",
-                    EndDateTime = DateTimeOffset.UtcNow.AddMonths(validityInMonths),
-                    StartDateTime = DateTimeOffset.UtcNow,
-                }
-            });
+                DisplayName = $"Managed by Kerbee ({_websiteOptions.Value.SiteName})",
+                EndDateTime = DateTimeOffset.UtcNow.AddMonths(validityInMonths),
+                StartDateTime = DateTimeOffset.UtcNow,
+            }
+        };
+        const int maxRetries = 3;
+        var retryConfig = new RetryHandlerOption()
+        {
+            MaxRetry = maxRetries,
+            Delay = 3,
+            ShouldRetry = (delay, attempt, httpResponse) =>
+            {
+                if (httpResponse?.StatusCode == System.Net.HttpStatusCode.Unauthorized) { return false; }
+                if (attempt > maxRetries) { return false; }
+                _logger.LogInformation("Retrying request ({attempt}) to generate secret for application {applicationId}", attempt, applicationObjectId);
+                return true;
+            }
+        };
+        var requestOptions = new List<IRequestOption>
+        {
+            retryConfig
+        };
+
+        var password = await request.PostAsync(body, requestConfiguration => requestConfiguration.Options = requestOptions);
 
         if (password?.SecretText is null)
         {
