@@ -23,6 +23,8 @@ using Microsoft.Extensions.Options;
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults(builder =>
     {
+        builder.UseMiddleware<AzureEventSourceLogForwarderMiddleware>();
+
         builder.UseWhen<ClaimsPrincipalMiddleware>(context =>
         {
             var options = context.InstanceServices.GetRequiredService<IOptions<DeveloperOptions>>();
@@ -101,24 +103,31 @@ var host = new HostBuilder()
         services.AddSingleton(provider =>
         {
             var environment = provider.GetRequiredService<AzureEnvironment>();
-            var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
-            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
+            var options = new DefaultAzureCredentialOptions
             {
                 AuthorityHost = environment.AuthorityHost
-            });
+            };
+            options.Diagnostics.IsAccountIdentifierLoggingEnabled = true;
+            return options;
+        });
 
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<DefaultAzureCredentialOptions>();
+            return new DefaultAzureCredential(options);
+        });
+
+        services.AddSingleton(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
+            var credential = provider.GetRequiredService<DefaultAzureCredential>();
             return new CertificateClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 
         services.AddSingleton(provider =>
         {
-            var environment = provider.GetRequiredService<AzureEnvironment>();
             var options = provider.GetRequiredService<IOptions<KerbeeOptions>>();
-            var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-            {
-                AuthorityHost = environment.AuthorityHost
-            });
-
+            var credential = provider.GetRequiredService<DefaultAzureCredential>();
             return new SecretClient(new Uri(options.Value.VaultBaseUrl), credential);
         });
 

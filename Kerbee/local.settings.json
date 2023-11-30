@@ -3,6 +3,7 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "APPINSIGHTS_INSTRUMENTATIONKEY": "00000000-0000-0000-0000-000000000000",
     "AZURE_CLIENT_ID": "3c508be3-ad81-42af-ab06-456a49124b2f",
     "WEBSITE_AUTH_ENABLED": "True",
     "WEBSITE_AUTH_OPENID_ISSUER": "https://sts.windows.net/cd004ec9-bc4b-4721-82df-cd3a2e134a09/v2.0",

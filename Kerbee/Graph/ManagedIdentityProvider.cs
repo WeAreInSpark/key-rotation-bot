@@ -16,21 +16,16 @@ public class ManagedIdentityProvider
 {
     private readonly GraphServiceClient _managedIdentityClient;
     private readonly Task<ServicePrincipal> _loadManagedIdentity;
-    private readonly IOptions<AzureAdOptions> _azureAdOptions;
     private readonly IOptions<ManagedIdentityOptions> _managedIdentityOptions;
+    private readonly DefaultAzureCredential _credential;
 
     public ManagedIdentityProvider(
-        IOptions<AzureAdOptions> azureAdOptions,
-        IOptions<ManagedIdentityOptions> managedIdentityOptions)
+        IOptions<ManagedIdentityOptions> managedIdentityOptions,
+        DefaultAzureCredential credential)
     {
-        _azureAdOptions = azureAdOptions;
         _managedIdentityOptions = managedIdentityOptions;
-
-        _managedIdentityClient = new GraphServiceClient(new DefaultAzureCredential(
-            new DefaultAzureCredentialOptions
-            {
-                TenantId = _azureAdOptions.Value.TenantId,
-            }));
+        _credential = credential;
+        _managedIdentityClient = new GraphServiceClient(_credential);
 
         _loadManagedIdentity = new Func<Task<ServicePrincipal>>(async () =>
         {
