@@ -15,6 +15,7 @@ using Microsoft.Graph;
 using Microsoft.Graph.Applications.Item.AddPassword;
 using Microsoft.Graph.Applications.Item.RemovePassword;
 using Microsoft.Graph.Models;
+using Microsoft.Identity.Client.AppConfig;
 using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 
@@ -78,16 +79,19 @@ public class GraphService : IGraphService
 
         var managedIdentity = await _managedIdentityProvider.GetAsync();
 
-        var owners = await client.Applications[applicationObjectId]
-            .Owners
-            .GetAsync();
-
-        // check if applicationObjectId is already an owner
-        if (owners?.Value is not null && owners.Value.Any(x => x.Id == managedIdentity.Id))
+        if (managedIdentity is null)
         {
             return;
         }
 
+        if (await IsApplicationOwnerAsync(applicationObjectId, managedIdentity.Id))
+        {
+            return;
+        }
+
+        _logger.LogInformation("Make managed identity {directoryObjectId} owner of application {applicationObjectId}", managedIdentity.Id, applicationObjectId);
+
+        // Make the applicationObjectId an owner of the application
         await client.Applications[applicationObjectId]
             .Owners
             .Ref
@@ -95,6 +99,40 @@ public class GraphService : IGraphService
             {
                 OdataId = $"https://graph.microsoft.com/v1.0/directoryObjects/{managedIdentity.Id}"
             });
+
+        _logger.LogInformation("Waiting for managed identity {directoryObjectId} to be owner of application {applicationObjectId}", managedIdentity.Id, applicationObjectId);
+
+        // Wait for the application to be an owner
+        var retryCount = 0;
+        while (true)
+        {
+            if (await IsApplicationOwnerAsync(applicationObjectId, managedIdentity.Id))
+            {
+                break;
+            }
+
+            if (retryCount > 20)
+            {
+                throw new Exception($"Failed to make managed identity {managedIdentity.DisplayName} owner of application {applicationObjectId}");
+            }
+
+            retryCount++;
+            await Task.Delay(2000);
+        }
+
+        _logger.LogInformation("Managed identity {directoryObjectId} is owner of application {applicationObjectId}", managedIdentity.Id, applicationObjectId);
+    }
+
+    private async Task<bool> IsApplicationOwnerAsync(string applicationObjectId, string? directoryObjectId)
+    {
+        var client = GetClientForUser();
+
+        var owners = await client.Applications[applicationObjectId]
+            .Owners
+            .GetAsync();
+
+        return owners?.Value is not null
+            && owners.Value.Any(x => x.Id == directoryObjectId);
     }
 
     public async Task RemoveManagedIdentityAsOwnerOfApplicationAsync(string applicationObjectId)
@@ -204,22 +242,23 @@ public class GraphService : IGraphService
                 StartDateTime = DateTimeOffset.UtcNow,
             }
         };
+
         const int maxRetries = 10;
-        var retryConfig = new RetryHandlerOption()
-        {
-            MaxRetry = maxRetries,
-            Delay = 6,
-            ShouldRetry = (delay, attempt, httpResponse) =>
-            {
-                if (httpResponse?.StatusCode == System.Net.HttpStatusCode.Unauthorized) { return false; }
-                if (attempt > maxRetries) { return false; }
-                _logger.LogInformation("Retrying request ({attempt}) to generate secret for application {applicationId}", attempt, applicationObjectId);
-                return true;
-            }
-        };
+
         var requestOptions = new List<IRequestOption>
         {
-            retryConfig
+            new RetryHandlerOption()
+            {
+                MaxRetry = maxRetries,
+                Delay = 6,
+                ShouldRetry = (delay, attempt, httpResponse) =>
+                {
+                    if (httpResponse?.StatusCode == System.Net.HttpStatusCode.Unauthorized) { return false; }
+                    if (attempt > maxRetries) { return false; }
+                    _logger.LogInformation("Retrying request ({attempt}) to generate secret for application {applicationId}", attempt, applicationObjectId);
+                    return true;
+                }
+            }
         };
 
         var password = await request.PostAsync(body, requestConfiguration => requestConfiguration.Options = requestOptions);
