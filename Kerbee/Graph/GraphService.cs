@@ -243,16 +243,17 @@ public class GraphService : IGraphService
             }
         };
 
-        const int maxRetries = 10;
+        const int maxRetries = 5;
 
         var requestOptions = new List<IRequestOption>
         {
             new RetryHandlerOption()
             {
                 MaxRetry = maxRetries,
-                Delay = 6,
+                Delay = 2,
                 ShouldRetry = (delay, attempt, httpResponse) =>
                 {
+                    if (httpResponse?.StatusCode == System.Net.HttpStatusCode.OK) { return false; }
                     if (httpResponse?.StatusCode == System.Net.HttpStatusCode.Unauthorized) { return false; }
                     if (attempt > maxRetries) { return false; }
                     _logger.LogInformation("Retrying request ({attempt}) to generate secret for application {applicationId}", attempt, applicationObjectId);
