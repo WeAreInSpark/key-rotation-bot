@@ -289,7 +289,7 @@ internal class ApplicationService : IApplicationService
 
         if (application.KeyType == KeyType.Certificate)
         {
-            await _graphService.RemoveCertificateAsync(application.Id.ToString(), new Guid(application.KeyId));
+            await _graphService.RemoveCertificateAsync(application.Id.ToString(), application.KeyId);
 
             // Delete the certificate if it is still in the key vault
             var certificate = await _certificateClient.GetCertificateAsync(application.KeyName);
@@ -331,9 +331,9 @@ internal class ApplicationService : IApplicationService
         // Remove expired certificates
         var expiredCertificates = graphApplication.KeyCredentials?
             .Where(x => x.EndDateTime <= DateTime.UtcNow)
-            .Where(x => x.KeyId.HasValue)
+            .Where(x => x.CustomKeyIdentifier is not null)
             .ToArray() ?? Array.Empty<Microsoft.Graph.Models.KeyCredential>();
 
-        await Task.WhenAll(expiredCertificates.Select(x => _graphService.RemoveCertificateAsync(application.Id.ToString(), x.KeyId!.Value)));
+        await Task.WhenAll(expiredCertificates.Select(x => _graphService.RemoveCertificateAsync(application.Id.ToString(), Convert.ToBase64String(x.CustomKeyIdentifier!))));
     }
 }

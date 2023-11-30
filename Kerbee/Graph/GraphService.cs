@@ -163,12 +163,14 @@ public class GraphService : IGraphService
         }
     }
 
-    public async Task RemoveCertificateAsync(string applicationObjectId, Guid keyId)
+    public async Task RemoveCertificateAsync(string applicationObjectId, string keyId)
     {
         var client = GetClientForUser();
 
         var application = await client.Applications[applicationObjectId].GetAsync();
-        var key = application?.KeyCredentials?.FirstOrDefault(x => x.KeyId == keyId);
+        var key = application?.KeyCredentials?
+            .Where(x => x.CustomKeyIdentifier is not null)
+            .FirstOrDefault(x => Convert.ToBase64String(x.CustomKeyIdentifier!) == keyId);
 
         if (application is not null && key is not null)
         {
