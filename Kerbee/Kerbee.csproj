@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <AzureFunctionsVersion>v4</AzureFunctionsVersion>
@@ -23,7 +23,6 @@
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Tables" Version="1.3.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.0" />
     <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.16.4" />
-    <PackageReference Include="Microsoft.DurableTask.Generators" Version="1.0.0-preview.1" />
     <PackageReference Include="Microsoft.Graph" Version="5.41.0" />
     <PackageReference Include="Microsoft.Identity.Web" Version="2.16.1" />
     <PackageReference Include="Microsoft.Identity.Web.MicrosoftGraph" Version="2.16.1" />
@@ -42,10 +41,4 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
-  </ItemGroup>
-  <Target Name="DeleteFiles" AfterTargets="Publish">
-    <Delete Files="$(PublishDir)System.Reactive.xml" />
-  </Target>
 </Project>

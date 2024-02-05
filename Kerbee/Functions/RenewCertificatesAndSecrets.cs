@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Kerbee.Models;
@@ -29,16 +30,18 @@ public class RenewCertificatesAndSecrets
     [Function($"{nameof(RenewCertificatesAndSecrets)}_{nameof(Orchestrator)}")]
     public async Task Orchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        await context.CallUpdateApplicationsActivityAsync(null!);
+        await context.CallActivityAsync<object>("UpdateApplicationsActivity", new object());
 
-        var applicationsWithExpiringKeys = await context.CallGetExpiringCertificatesAndSecretsAsync(context.CurrentUtcDateTime.AddDays(_kerbeeOptions.Value.RenewBeforeExpiryInDays));
+        var applicationsWithExpiringKeys = await context.CallActivityAsync<IEnumerable<Application>>(
+            nameof(GetExpiringCertificatesAndSecrets),
+            context.CurrentUtcDateTime.AddDays(_kerbeeOptions.Value.RenewBeforeExpiryInDays));
 
         foreach (var applicationWithExpiringKey in applicationsWithExpiringKeys.Where(x => x.KeyType == KeyType.None))
         {
             applicationWithExpiringKey.KeyType = _kerbeeOptions.Value.DefaultKeyType;
         }
 
-        var renewalTasks = applicationsWithExpiringKeys.Select(x => context.CallRenewKeyActivityAsync(x)).ToList();
+        var renewalTasks = applicationsWithExpiringKeys.Select(x => context.CallActivityAsync(nameof(RenewKeyActivity), x)).ToList();
 
         await Task.WhenAll(renewalTasks);
     }
@@ -49,7 +52,7 @@ public class RenewCertificatesAndSecrets
         // Function input comes from the request content.
         var instanceId = await starter.ScheduleNewOrchestrationInstanceAsync($"{nameof(RenewCertificatesAndSecrets)}_{nameof(Orchestrator)}");
 
-        _logger.LogInformation($"Started orchestration with ID = '{instanceId}'.");
+        _logger.LogInformation("Started orchestration with {OrchestrationId}", instanceId);
     }
 
     [Function($"{nameof(RenewCertificatesAndSecrets)}_{nameof(HttpStart)}")]
@@ -60,7 +63,7 @@ public class RenewCertificatesAndSecrets
         // Function input comes from the request content.
         var instanceId = await starter.ScheduleNewOrchestrationInstanceAsync($"{nameof(RenewCertificatesAndSecrets)}_{nameof(Orchestrator)}");
 
-        _logger.LogInformation($"Started orchestration with ID = '{instanceId}'.");
+        _logger.LogInformation("Started orchestration with {OrchestrationId}", instanceId);
 
         return starter.CreateCheckStatusResponse(req, instanceId);
     }

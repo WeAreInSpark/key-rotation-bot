@@ -4,20 +4,20 @@ using System.Threading.Tasks;
 using Kerbee.Graph;
 using Kerbee.Models;
 
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
-[DurableTask(nameof(RenewKeyActivity))]
 public class RenewKeyActivity(
     ILogger<RenewKeyActivity> logger,
-    IApplicationService applicationService) : TaskActivity<Application, object>
+    IApplicationService applicationService)
 {
     private readonly ILogger _logger = logger;
     private readonly IApplicationService _applicationService = applicationService;
 
-    public override async Task<object> RunAsync(TaskActivityContext context, Application application)
+    [Function(nameof(RenewKeyActivity))]
+    public async Task<object> RunAsync([ActivityTrigger] Application application)
     {
         try
         {

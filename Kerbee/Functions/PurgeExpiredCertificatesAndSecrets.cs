@@ -1,5 +1,7 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
+using Kerbee.Models;
 using Kerbee.Options;
 
 using Microsoft.Azure.Functions.Worker;
@@ -27,13 +29,13 @@ public class PurgeExpiredCertificatesAndSecrets
     [Function($"{nameof(PurgeExpiredCertificatesAndSecrets)}_{nameof(Orchestrator)}")]
     public async Task Orchestrator([OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        await context.CallUpdateApplicationsActivityAsync(null!);
+        await context.CallActivityAsync(nameof(UpdateApplicationsActivity), new object());
 
-        var applications = await context.CallGetApplicationsActivityAsync(new object());
+        var applications = await context.CallActivityAsync<IEnumerable<Application>>(nameof(GetApplicationsActivity), new object());
 
         foreach (var application in applications)
         {
-            await context.CallPurgeExpiredKeysActivityAsync(application);
+            await context.CallActivityAsync(nameof(PurgeExpiredKeysActivity), application);
         }
     }
 
@@ -54,7 +56,7 @@ public class PurgeExpiredCertificatesAndSecrets
         // Function input comes from the request content.
         var instanceId = await starter.ScheduleNewOrchestrationInstanceAsync($"{nameof(PurgeExpiredCertificatesAndSecrets)}_{nameof(Orchestrator)}");
 
-        _logger.LogInformation($"Started orchestration with ID = '{instanceId}'.");
+        _logger.LogInformation("Started orchestration with {OrchestrationId}", instanceId);
 
         return starter.CreateCheckStatusResponse(req, instanceId);
     }

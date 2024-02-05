@@ -6,13 +6,12 @@ using Kerbee.Graph;
 using Kerbee.Models;
 using Kerbee.Options;
 
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Options;
 
 namespace Kerbee.Functions;
 
-[DurableTask(nameof(GetExpiringCertificatesAndSecrets))]
-public class GetExpiringCertificatesAndSecrets : TaskActivity<DateTime, IEnumerable<Application>>
+public class GetExpiringCertificatesAndSecrets
 {
     public GetExpiringCertificatesAndSecrets(
         IApplicationService applicationService,
@@ -25,7 +24,8 @@ public class GetExpiringCertificatesAndSecrets : TaskActivity<DateTime, IEnumera
     private readonly IApplicationService _applicationService;
     private readonly KerbeeOptions _options;
 
-    public override async Task<IEnumerable<Application>> RunAsync(TaskActivityContext context, DateTime expiryDate)
+    [Function(nameof(GetExpiringCertificatesAndSecrets))]
+    public async Task<IEnumerable<Application>> RunAsync([ActivityTrigger] DateTime expiryDate)
     {
         return await _applicationService.GetApplicationsAsync(expiryDate);
     }
