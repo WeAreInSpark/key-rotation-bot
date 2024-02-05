@@ -10,21 +10,23 @@ using Microsoft.Extensions.Logging;
 namespace Kerbee.Functions;
 
 [DurableTask(nameof(GetApplicationsActivity))]
-public class GetApplicationsActivity : TaskActivity<object, IEnumerable<Application>>
+public class GetApplicationsActivity(
+    ILogger<GetApplicationsActivity> logger,
+    IApplicationService applicationService) : TaskActivity<object, IEnumerable<Application>>
 {
-    private readonly ILogger _logger;
-    private readonly IApplicationService _applicationService;
+    private readonly ILogger _logger = logger;
+    private readonly IApplicationService _applicationService = applicationService;
 
-    public GetApplicationsActivity(
-        ILogger<GetApplicationsActivity> logger,
-        IApplicationService applicationService)
+    public override async Task<IEnumerable<Application>> RunAsync(TaskActivityContext context, object input)
     {
-        _logger = logger;
-        _applicationService = applicationService;
-    }
-
-    public async override Task<IEnumerable<Application>> RunAsync(TaskActivityContext context, object input)
-    {
-        return await _applicationService.GetApplicationsAsync();
+        try
+        {
+            return await _applicationService.GetApplicationsAsync();
+        }
+        catch (System.Exception ex)
+        {
+            _logger.LogError(ex, "Error getting applications");
+            throw;
+        }
     }
 }

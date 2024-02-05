@@ -1,27 +1,34 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 
 using Kerbee.Graph;
 
 using Microsoft.DurableTask;
+using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
 [DurableTask(nameof(UpdateApplicationsActivity))]
-public class UpdateApplicationsActivity : TaskActivity<object, object>
+public class UpdateApplicationsActivity(
+    IApplicationService applicationService,
+    ILogger<UpdateApplicationsActivity> logger) : TaskActivity<object, object>
 {
-    private readonly IApplicationService _applicationService;
+    private readonly IApplicationService _applicationService = applicationService;
+    private readonly ILogger<UpdateApplicationsActivity> _logger = logger;
 
-    public UpdateApplicationsActivity(IApplicationService applicationService)
-    {
-        _applicationService = applicationService;
-    }
-
-    public async override Task<object> RunAsync(
+    public override async Task<object> RunAsync(
         TaskActivityContext context,
         object input)
     {
-        await _applicationService.UpdateApplications();
-
-        return new object();
+        try
+        {
+            await _applicationService.UpdateApplications();
+            return new object();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating applications");
+            throw;
+        }
     }
 }
