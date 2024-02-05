@@ -22,6 +22,7 @@ public class UpdateApplicationsActivity(
     {
         try
         {
+            _logger.LogInformation("Updating applications");
             await _applicationService.UpdateApplications();
             return new object();
         }
