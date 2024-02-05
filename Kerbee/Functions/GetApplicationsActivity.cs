@@ -4,20 +4,20 @@ using System.Threading.Tasks;
 using Kerbee.Graph;
 using Kerbee.Models;
 
-using Microsoft.DurableTask;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 
 namespace Kerbee.Functions;
 
-[DurableTask(nameof(GetApplicationsActivity))]
 public class GetApplicationsActivity(
     ILogger<GetApplicationsActivity> logger,
-    IApplicationService applicationService) : TaskActivity<object, IEnumerable<Application>>
+    IApplicationService applicationService)
 {
     private readonly ILogger _logger = logger;
     private readonly IApplicationService _applicationService = applicationService;
 
-    public override async Task<IEnumerable<Application>> RunAsync(TaskActivityContext context, object input)
+    [Function(nameof(GetApplicationsActivity))]
+    public async Task<IEnumerable<Application>> RunAsync([ActivityTrigger] object input)
     {
         try
         {
