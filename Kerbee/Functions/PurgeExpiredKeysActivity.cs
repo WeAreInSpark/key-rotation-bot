@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 
 using Kerbee.Graph;
 using Kerbee.Models;
@@ -9,22 +10,24 @@ using Microsoft.Extensions.Logging;
 namespace Kerbee.Functions;
 
 [DurableTask(nameof(PurgeExpiredKeysActivity))]
-public class PurgeExpiredKeysActivity : TaskActivity<Application, object>
+public class PurgeExpiredKeysActivity(
+    ILogger<PurgeExpiredKeysActivity> logger,
+    IApplicationService applicationService) : TaskActivity<Application, object>
 {
-    private readonly ILogger _logger;
-    private readonly IApplicationService _applicationService;
+    private readonly ILogger _logger = logger;
+    private readonly IApplicationService _applicationService = applicationService;
 
-    public PurgeExpiredKeysActivity(
-        ILogger<PurgeExpiredKeysActivity> logger,
-        IApplicationService applicationService)
+    public override async Task<object> RunAsync(TaskActivityContext context, Application application)
     {
-        _logger = logger;
-        _applicationService = applicationService;
-    }
-
-    public async override Task<object> RunAsync(TaskActivityContext context, Application application)
-    {
-        await _applicationService.PurgeKeys(application);
-        return new();
+        try
+        {
+            await _applicationService.PurgeKeys(application);
+            return new();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error purging keys for application {ApplicationId}", application.Id);
+            throw;
+        }
     }
 }
