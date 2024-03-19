@@ -232,7 +232,7 @@ public class GraphService : IGraphService
             });
 
         // Get the updated application in order to get the key id
-        application = await GetApplicationAsync(applicationObjectId);
+        application = await GetApplicationForManagedIdentityAsync(applicationObjectId);
 
         _logger.LogInformation("Generated new certificate for application {applicationId}", applicationObjectId);
     }
@@ -282,7 +282,13 @@ public class GraphService : IGraphService
         return password;
     }
 
-    public async Task<Application?> GetApplicationAsync(string applicationObjectId)
+    public async Task<Application?> GetApplicationForUserAsync(string applicationObjectId)
+    {
+        var client = GetClientForUser();
+        return await client.Applications[applicationObjectId].GetAsync();
+    }
+
+    public async Task<Application?> GetApplicationForManagedIdentityAsync(string applicationObjectId)
     {
         return await _managedIdentityProvider.GetClient().Applications[applicationObjectId].GetAsync();
     }
