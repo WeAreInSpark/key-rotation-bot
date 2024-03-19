@@ -313,7 +313,7 @@ internal class ApplicationService : IApplicationService
 
     public async Task PurgeKeys(Application application)
     {
-        var graphApplication = await _graphService.GetApplicationForManagedIdentityAsync(application.Id.ToString());
+        var graphApplication = await _graphService.GetApplicationAsync(application.Id.ToString());
 
         if (graphApplication is null)
         {
