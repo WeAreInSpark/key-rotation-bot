@@ -14,7 +14,7 @@ public interface IGraphService
     Task<PasswordCredential> GenerateSecretAsync(string applicationObjectId, int ValidityInMonths);
     Task AddCertificateAsync(string applicationObjectId, byte[] cer, params string[] keysToReplace);
     Task RemoveManagedIdentityAsOwnerOfApplicationAsync(string applicationObjectId);
-    Task RemoveCertificateAsync(string applicationObjectId, string keyId);
-    Task RemoveSecretAsync(string applicationObjectId, Guid keyId);
+    Task RemoveCertificateAsync(string applicationObjectId, string keyId, ClientType clientType);
+    Task RemoveSecretAsync(string applicationObjectId, Guid keyId, ClientType clientType);
     Task<Application?> GetApplicationAsync(string applicationObjectId);
 }

@@ -163,9 +163,17 @@ public class GraphService : IGraphService
         }
     }
 
-    public async Task RemoveCertificateAsync(string applicationObjectId, string keyId)
+    public async Task RemoveCertificateAsync(string applicationObjectId, string keyId, ClientType clientType)
     {
-        var client = GetClientForUser();
+        GraphServiceClient client;
+        if (clientType == ClientType.Application)
+        {
+            client = _managedIdentityProvider.GetClient();
+        }
+        else
+        {
+            client = GetClientForUser();
+        }
 
         var application = await client.Applications[applicationObjectId].GetAsync();
         var key = application?.KeyCredentials?
@@ -179,9 +187,18 @@ public class GraphService : IGraphService
         }
     }
 
-    public async Task RemoveSecretAsync(string applicationObjectId, Guid keyId)
+    public async Task RemoveSecretAsync(string applicationObjectId, Guid keyId, ClientType clientType)
     {
-        var client = GetClientForUser();
+        GraphServiceClient client;
+        if (clientType == ClientType.Application)
+        {
+            client = _managedIdentityProvider.GetClient();
+        }
+        else
+        {
+            client = GetClientForUser();
+        }
+
         await client.Applications[applicationObjectId]
             .RemovePassword
             .PostAsync(new RemovePasswordPostRequestBody()
@@ -347,4 +364,10 @@ public class GraphService : IGraphService
         return owners?.Value is not null
             && owners.Value.Any(x => x.Id == directoryObjectId);
     }
+}
+
+public enum ClientType
+{
+    User,
+    Application
 }
