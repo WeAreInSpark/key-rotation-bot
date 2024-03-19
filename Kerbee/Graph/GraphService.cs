@@ -347,9 +347,3 @@ public class GraphService : IGraphService
             && owners.Value.Any(x => x.Id == directoryObjectId);
     }
 }
-
-public enum ClientType
-{
-    User,
-    Application
-}
