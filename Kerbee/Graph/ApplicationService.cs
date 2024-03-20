@@ -117,6 +117,17 @@ internal class ApplicationService : IApplicationService
             applications.Remove(application);
         }
 
+        // Update the names of the applications in the table
+        foreach (var application in applications)
+        {
+            var graphApplication = graphApplications.FirstOrDefault(x => x.Id == application.Id.ToString());
+            if (graphApplication is not null && graphApplication.DisplayName is not null && graphApplication.DisplayName != application.DisplayName)
+            {
+                application.DisplayName = graphApplication.DisplayName;
+                await _tableClient.UpdateEntityAsync(application.ToEntity(), ETag.All);
+            }
+        }
+
         // Add applications that are owned by kerbee in the graph but not in the table
         var applicationsPendingManagement = graphApplications
             .Where(x => applications.None(application => application.Id.ToString() == x.Id))
