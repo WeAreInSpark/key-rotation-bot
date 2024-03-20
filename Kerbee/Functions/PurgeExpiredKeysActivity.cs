@@ -26,7 +26,7 @@ public class PurgeExpiredKeysActivity(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error purging keys for application {ApplicationId}", application.Id);
+            _logger.LogError(ex, "Error purging keys for application {ApplicationId}", application.AppId);
             throw;
         }
     }

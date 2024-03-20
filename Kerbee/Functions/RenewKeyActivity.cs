@@ -26,7 +26,7 @@ public class RenewKeyActivity(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error renewing key for application {ApplicationId}", application.Id);
+            _logger.LogError(ex, "Error renewing key for application {ApplicationId}", application.AppId);
             throw;
         }
     }
