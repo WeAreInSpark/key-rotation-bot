@@ -12,7 +12,7 @@ using Microsoft.Graph.Models;
 
 namespace Kerbee.Graph;
 
-public class ManagedIdentityProvider
+public class ManagedIdentityProvider : IManagedIdentityProvider
 {
     private readonly GraphServiceClient _managedIdentityClient;
     private readonly Task<ServicePrincipal> _loadManagedIdentity;

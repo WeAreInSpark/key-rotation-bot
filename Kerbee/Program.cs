@@ -141,7 +141,7 @@ var host = new HostBuilder()
 
         services.AddSingleton<WebhookInvoker>();
         services.AddSingleton<ILifecycleNotificationHelper, WebhookLifeCycleNotification>();
-        services.AddSingleton<ManagedIdentityProvider>();
+        services.AddSingleton<IManagedIdentityProvider, ManagedIdentityProvider>();
 
         services.AddScoped<IGraphService, GraphService>();
 

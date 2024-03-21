@@ -23,12 +23,12 @@ namespace Kerbee.Graph;
 public class GraphService : IGraphService
 {
     private readonly ILogger _logger;
-    private readonly ManagedIdentityProvider _managedIdentityProvider;
+    private readonly IManagedIdentityProvider _managedIdentityProvider;
     private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
     private readonly IOptions<WebsiteOptions> _websiteOptions;
 
     public GraphService(
-        ManagedIdentityProvider managedIdentityProvider,
+        IManagedIdentityProvider managedIdentityProvider,
         IClaimsPrincipalAccessor claimsPrincipalAccessor,
         IOptions<WebsiteOptions> websiteOptions,
         ILoggerFactory loggerFactory)
