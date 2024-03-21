@@ -22,6 +22,9 @@ jobs:
     - name: Build project
       run: dotnet build -c Release
 
+    - name: Test project
+      run: dotnet test --no-build
+
     - name: Lint C# code
       run: dotnet format --verify-no-changes --verbosity detailed --no-restore
 
