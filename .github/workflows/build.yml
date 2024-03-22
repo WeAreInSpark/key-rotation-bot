@@ -19,8 +19,8 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Build project
-      run: dotnet build -c Release
+    - name: Build & Test project
+      run: dotnet test
 
     - name: Lint C# code
       run: dotnet format --verify-no-changes --verbosity detailed --no-restore

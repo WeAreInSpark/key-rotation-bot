@@ -117,6 +117,17 @@ internal class ApplicationService : IApplicationService
             applications.Remove(application);
         }
 
+        // Update the names of the applications in the table
+        foreach (var application in applications)
+        {
+            var graphApplication = graphApplications.FirstOrDefault(x => x.Id == application.Id.ToString());
+            if (graphApplication?.DisplayName is not null && graphApplication.DisplayName != application.DisplayName)
+            {
+                application.DisplayName = graphApplication.DisplayName;
+                await _tableClient.UpdateEntityAsync(application.ToEntity(), ETag.All);
+            }
+        }
+
         // Add applications that are owned by kerbee in the graph but not in the table
         var applicationsPendingManagement = graphApplications
             .Where(x => applications.None(application => application.Id.ToString() == x.Id))
@@ -132,7 +143,7 @@ internal class ApplicationService : IApplicationService
 
     public async Task RenewCertificate(Application application, bool replaceCurrent)
     {
-        _logger.LogInformation("Renewing certificate for application {applicationId}", application.Id);
+        _logger.LogInformation("Renewing certificate for application {applicationId}", application.AppId);
 
         // Generate certificate in Azure Key Vault
         var policy = CertificatePolicy.Default;
@@ -187,7 +198,7 @@ internal class ApplicationService : IApplicationService
 
     public async Task RenewSecret(Application application, bool replaceCurrent)
     {
-        _logger.LogInformation("Renewing secret for application {applicationId}", application.Id);
+        _logger.LogInformation("Renewing secret for application {applicationId}", application.AppId);
 
         // Delete the current secret if requested
         if (replaceCurrent && application.KeyId is not null)
@@ -283,7 +294,7 @@ internal class ApplicationService : IApplicationService
     {
         if (application.KeyId is null)
         {
-            _logger.LogWarning("Application {applicationId} does not have a key", application.Id);
+            _logger.LogWarning("Application {applicationId} does not have a key", application.AppId);
             return;
         }
 

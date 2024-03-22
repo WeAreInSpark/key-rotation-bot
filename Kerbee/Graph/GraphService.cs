@@ -15,7 +15,6 @@ using Microsoft.Graph;
 using Microsoft.Graph.Applications.Item.AddPassword;
 using Microsoft.Graph.Applications.Item.RemovePassword;
 using Microsoft.Graph.Models;
-using Microsoft.Identity.Client.AppConfig;
 using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Http.HttpClientLibrary.Middleware.Options;
 
@@ -24,12 +23,12 @@ namespace Kerbee.Graph;
 public class GraphService : IGraphService
 {
     private readonly ILogger _logger;
-    private readonly ManagedIdentityProvider _managedIdentityProvider;
+    private readonly IManagedIdentityProvider _managedIdentityProvider;
     private readonly IClaimsPrincipalAccessor _claimsPrincipalAccessor;
     private readonly IOptions<WebsiteOptions> _websiteOptions;
 
     public GraphService(
-        ManagedIdentityProvider managedIdentityProvider,
+        IManagedIdentityProvider managedIdentityProvider,
         IClaimsPrincipalAccessor claimsPrincipalAccessor,
         IOptions<WebsiteOptions> websiteOptions,
         ILoggerFactory loggerFactory)
@@ -165,7 +164,7 @@ public class GraphService : IGraphService
 
     public async Task RemoveCertificateAsync(string applicationObjectId, string keyId)
     {
-        var client = GetClientForUser();
+        var client = _managedIdentityProvider.GetClient();
 
         var application = await client.Applications[applicationObjectId].GetAsync();
         var key = application?.KeyCredentials?
@@ -181,7 +180,8 @@ public class GraphService : IGraphService
 
     public async Task RemoveSecretAsync(string applicationObjectId, Guid keyId)
     {
-        var client = GetClientForUser();
+        var client = _managedIdentityProvider.GetClient();
+
         await client.Applications[applicationObjectId]
             .RemovePassword
             .PostAsync(new RemovePasswordPostRequestBody()
@@ -284,8 +284,7 @@ public class GraphService : IGraphService
 
     public async Task<Application?> GetApplicationAsync(string applicationObjectId)
     {
-        var client = GetClientForUser();
-        return await client.Applications[applicationObjectId].GetAsync();
+        return await _managedIdentityProvider.GetClient().Applications[applicationObjectId].GetAsync();
     }
 
     private async Task<IEnumerable<Application>> GetApplicationsInternalAsync()

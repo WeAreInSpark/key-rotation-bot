@@ -150,7 +150,17 @@
                   </div>
                   <div class="field-body">
                     <div class="content">
-                      {{ details.application.displayName }}
+                      <a :href="`https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/appId/${details.application.appId}/isMSAApp~/false`">{{ details.application.displayName }}</a>
+                    </div>
+                  </div>
+                </div>
+                <div class="field is-horizontal">
+                  <div class="field-label">
+                    <label class="label">Application ID</label>
+                  </div>
+                  <div class="field-body">
+                    <div class="content">
+                      {{ details.application.appId }}
                     </div>
                   </div>
                 </div>

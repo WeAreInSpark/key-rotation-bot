@@ -5,7 +5,6 @@ using Kerbee.Models;
 using Kerbee.Options;
 
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
@@ -45,19 +44,6 @@ public class PurgeExpiredCertificatesAndSecrets
         // Function input comes from the request content.
         var instanceId = await starter.ScheduleNewOrchestrationInstanceAsync($"{nameof(PurgeExpiredCertificatesAndSecrets)}_{nameof(Orchestrator)}");
 
-        _logger.LogInformation($"Started orchestration with ID = '{instanceId}'.");
-    }
-
-    [Function($"{nameof(PurgeExpiredCertificatesAndSecrets)}_{nameof(HttpStart)}")]
-    public async Task<HttpResponseData> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/purge")] HttpRequestData req,
-        [DurableClient] DurableTaskClient starter)
-    {
-        // Function input comes from the request content.
-        var instanceId = await starter.ScheduleNewOrchestrationInstanceAsync($"{nameof(PurgeExpiredCertificatesAndSecrets)}_{nameof(Orchestrator)}");
-
         _logger.LogInformation("Started orchestration with {OrchestrationId}", instanceId);
-
-        return starter.CreateCheckStatusResponse(req, instanceId);
     }
 }
