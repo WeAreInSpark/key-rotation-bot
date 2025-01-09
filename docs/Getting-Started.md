@@ -4,13 +4,13 @@
 
 ### Create an appreg
 
-To deploy Kerbee an appreg is needed. With `Application.ReadWrite.All` and ``User.Read` API permissions. Follow these steps to create the appreg:
+To deploy a Kerbee instance to a `Tenant` an `App Registration` is needed. With `Application.ReadWrite.All` and ``User.Read` API permissions. Follow these steps to create the appreg:
 
-1. Create a new appreg in Microsoft Entra ID
-![image](https://github.com/user-attachments/assets/272326de-a203-4067-ac64-6ed277d7862f)
-2. Fill in the Web redirect url, point it towards the to be created Kerbee resource, e.g. `https://[functionappname].azurewebsites.net/.auth/login/aad/callback`
-3. In the `API permissions` page add the `Application.ReadWrite.All` permission (`User.Read` is present by default).
-4. From the application overview copy the `Application (client) ID`, this a configuration value used later in the `bicep` template.
+1. Create a new  `App Registration` in Microsoft Entra ID
+2. Do not change `Supported account types`, keep `Single tenant`
+3. Fill in the Web redirect url, point it towards the to be created Kerbee resource, e.g. `https://[functionappname].azurewebsites.net/.auth/login/aad/callback`
+4. In the `API permissions` page add the `Application.ReadWrite.All` permission (`User.Read` is present by default).
+5. From the application overview copy the `Application (client) ID`, this a configuration value used later in the `bicep` template.
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FWeAreInSpark%2Fkey-rotation-bot%2Fmain%2Fazuredeploy.json)
 
