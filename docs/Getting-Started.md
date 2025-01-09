@@ -4,7 +4,7 @@
 
 ### Create an appreg
 
-To deploy a Kerbee instance to a `Tenant` an `App Registration` is needed with `Application.ReadWrite.All` and `User.Read` API permissions. Follow these steps to create the appreg:
+To deploy a Kerbee instance to a Tenant an App Registration is needed with `Application.ReadWrite.All` and `User.Read` API permissions. Follow these steps to create the appreg:
 
 1. Create a new  `App Registration` in Microsoft Entra ID
 2. Do not change `Supported account types`, keep `Single tenant`
