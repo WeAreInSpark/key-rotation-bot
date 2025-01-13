@@ -54,7 +54,8 @@ $subscriptionId = "<subscription-id>"
 $resourceGroup = "<resource-group>"
 $functionAppName = "<function-app-name>"
 
-az login --subscription $subscriptionId
+az login
+az account set --subscription  $subscriptionId
 
 $auth = az webapp auth show --resource-group $resourceGroup --name $functionAppName |
     ConvertFrom-Json |
