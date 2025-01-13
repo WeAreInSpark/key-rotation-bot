@@ -73,36 +73,8 @@ az webapp auth set --resource-group $resourceGroup --name $functionAppName --bod
 
 ## Assign permissions to managed identity
 
-The Key Rotation Bot uses a managed identity to access the Azure AD Graph API. The managed identity needs to be assigned the `Application.ReadWrite.OwnedBy` role on the Azure AD Graph API. Run the following PowerShell script to assign the role:
+The Key Rotation Bot uses a managed identity to access the Azure AD Graph API. The managed identity needs to be assigned the `Application.ReadWrite.OwnedBy` role on the Azure AD Graph API. Run the [Add-ApplicationRole.ps1](scripts/Add-ApplicationRole.ps1) to assign the role.
 
 ``` powershell
-param(
-    [Parameter(Mandatory)]
-    [string]
-    $tenantId,
-    [Parameter(Mandatory)]
-    [Guid]
-    $kerbeeAppId
-)
-
-Connect-AzAccount -Tenant $tenantId
-
-$kerbeePrincipal = Get-AzADServicePrincipal -Filter "appId eq '$kerbeeAppId'"
-$msGraphServicePrincipal = Get-AzADServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
-
-$appRole = $msGraphServicePrincipal.AppRole |
-    Where-Object {($_.Value -eq "Application.ReadWrite.OwnedBy") -and ($_.AllowedMemberType -contains "Application")}
-
-Connect-MgGraph -TenantId $tenantId
-
-$appRoleAssignment = @{
-    PrincipalId = $kerbeePrincipal.Id
-    ResourceId = $msGraphServicePrincipal.Id
-    AppRoleId = $appRole.Id
-}
-
-New-MgServicePrincipalAppRoleAssignment `
-     -ServicePrincipalId $appRoleAssignment.PrincipalId `
-     -BodyParameter $appRoleAssignment `
-     -Verbose
+./Add-ApplicationRole.ps1 -TenantId <TenantId> -AppId <Kerbee application id> 
 ```
