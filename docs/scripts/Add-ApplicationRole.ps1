@@ -1,34 +1,25 @@
-using module @{ ModuleName = "Microsoft.Graph.Applications"; ModuleVersion = "1.6.0"; MaximumVersion = "1.99.99" }
-using module @{ ModuleName = "Microsoft.Graph.Authentication"; ModuleVersion = "1.6.0"; MaximumVersion = "1.99.99" }
-using module @{ ModuleName = "Az.Accounts"; ModuleVersion = "3.0.4"; MaximumVersion = "3.99.99" }
-using module @{ ModuleName = "Az.Resources"; ModuleVersion = "7.4.0"; MaximumVersion = "7.99.99" }
-
 param(
     [Parameter(Mandatory)]
     [Guid]
     $TenantId,
-    [Parameter(Mandatory, HelpMessage="The Kerbee application id.")]
+    [Parameter(Mandatory, HelpMessage = "The Kerbee application id.")]
     [Guid]
     $AppId
 )
 
-Connect-AzAccount -Tenant $TenantId
+# Login to Azure
+az login --tenant $TenantId
 
-$kerbeePrincipal = Get-AzADServicePrincipal -Filter "appId eq '$AppId'"
-$msGraphServicePrincipal = Get-AzADServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
+# Get the service principal for the application
+$kerbeePrincipalId = az ad sp show --id $AppId --query "id" --output tsv
 
-$appRole = $msGraphServicePrincipal.AppRole |
-    Where-Object {($_.Value -eq "Application.ReadWrite.OwnedBy") -and ($_.AllowedMemberType -contains "Application")}
+# Get the Microsoft Graph service principal
+$msGraphServicePrincipalId = az ad sp list --filter "appId eq '00000003-0000-0000-c000-000000000000'" --query "[0].objectId" -o tsv
 
-Connect-MgGraph -TenantId $TenantId
+# Get the app role ID for "Application.ReadWrite.OwnedBy"
+$appRoleId = az ad sp show --id $msGraphServicePrincipalId --query "appRoles[?value=='Application.ReadWrite.OwnedBy' && contains(allowedMemberTypes, 'Application')].id" -o tsv
 
-$appRoleAssignment = @{
-    PrincipalId = $kerbeePrincipal.Id
-    ResourceId = $msGraphServicePrincipal.Id
-    AppRoleId = $appRole.Id
-}
+# Assign the app role to the service principal
+az ad sp create --id $kerbeePrincipalId --role $appRoleId --scope $msGraphServicePrincipalId
 
-New-MgServicePrincipalAppRoleAssignment `
-     -ServicePrincipalId $appRoleAssignment.PrincipalId `
-     -BodyParameter $appRoleAssignment `
-     -Verbose
+Write-Output "App role assigned successfully."
