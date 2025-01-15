@@ -28,7 +28,6 @@ $appRoleAssignment = @{
 
 $body = $($appRoleAssignment | ConvertTo-Json -Compress).Replace('"', '\"')
 
-$body = "{ 'principalId' : '$kerbeePrincipalId', 'resourceId': '$msGraphServicePrincipalId', appRoleId : '$appRoleId' }"
 az rest --method POST `
     --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$kerbeePrincipalId/appRoleAssignments" `
     --headers "Content-Type=application/json" `
