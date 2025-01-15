@@ -11,7 +11,7 @@ param(
 az login --tenant $TenantId
 
 # Get the service principal for the application
-$kerbeePrincipalId = az ad sp show --id $AppId --query "id" --output tsv
+$kerbeePrincipalId = az ad sp show --id "$AppId" --query "id" --output tsv
 
 # Get the Microsoft Graph service principal
 $msGraphServicePrincipalId = az ad sp show --id '00000003-0000-0000-c000-000000000000' --query "id" --output tsv
@@ -20,4 +20,16 @@ $msGraphServicePrincipalId = az ad sp show --id '00000003-0000-0000-c000-0000000
 $appRoleId = az ad sp show --id $msGraphServicePrincipalId --query "appRoles[?value=='Application.ReadWrite.OwnedBy' && contains(allowedMemberTypes, 'Application')].id" -o tsv
 
 # Assign the app role to the service principal
-az ad sp create --id $kerbeePrincipalId --role $appRoleId --scope $msGraphServicePrincipalId
+$appRoleAssignment = @{
+    principalId = $kerbeePrincipalId
+    resourceId  = $msGraphServicePrincipalId
+    appRoleId   = $appRoleId
+}
+
+$body = $($appRoleAssignment | ConvertTo-Json -Compress).Replace('"', '\"')
+
+$body = "{ 'principalId' : '$kerbeePrincipalId', 'resourceId': '$msGraphServicePrincipalId', appRoleId : '$appRoleId' }"
+az rest --method POST `
+    --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$kerbeePrincipalId/appRoleAssignments" `
+    --headers "Content-Type=application/json" `
+    --body $body
