@@ -73,7 +73,17 @@ az webapp auth set --resource-group $resourceGroup --name $functionAppName --bod
 
 ## Assign permissions to managed identity
 
-The Key Rotation Bot uses a managed identity to access the Azure AD Graph API. The managed identity needs to be assigned the `Application.ReadWrite.OwnedBy` role on the Azure AD Graph API. Run the [Add-ApplicationRole.ps1](scripts/Add-ApplicationRole.ps1) to assign the role.
+The Key Rotation Bot uses a managed identity to access the Azure AD Graph API. The managed identity needs to be assigned the `Application.ReadWrite.OwnedBy` role on the Azure AD Graph API. 
+
+As a prerequisite for the script, [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli#install-or-update) must be installed.
+
+``` cmd 
+winget install -e --id Microsoft.AzureCLI
+```
+
+To run this script you must have `Global Administrator` privileges.
+
+Run the [Add-ApplicationRole.ps1](scripts/Add-ApplicationRole.ps1) to assign the role.
 
 ``` powershell
 ./Add-ApplicationRole.ps1 -TenantId <TenantId> -AppId <Kerbee application id> 
