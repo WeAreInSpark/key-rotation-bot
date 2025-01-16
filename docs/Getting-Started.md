@@ -75,7 +75,7 @@ az webapp auth set --resource-group $resourceGroup --name $functionAppName --bod
 
 The Key Rotation Bot uses a managed identity to access the Azure AD Graph API. The managed identity needs to be assigned the `Application.ReadWrite.OwnedBy` role on the Azure AD Graph API. 
 
-As a prerequisiste for the script, [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli#install-or-update) must be installed.
+As a prerequisite for the script, [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli#install-or-update) must be installed.
 
 ``` cmd 
 winget install -e --id Microsoft.AzureCLI
