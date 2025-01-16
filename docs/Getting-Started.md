@@ -81,7 +81,7 @@ As a prerequisite for the script, [Azure CLI](https://learn.microsoft.com/en-us/
 winget install -e --id Microsoft.AzureCLI
 ```
 
-To run this scrip you must have `Global Administrator` priviliges.
+To run this script you must have `Global Administrator` privileges.
 
 Run the [Add-ApplicationRole.ps1](scripts/Add-ApplicationRole.ps1) to assign the role.
 
