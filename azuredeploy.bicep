@@ -92,7 +92,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
+resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp'
@@ -151,8 +151,9 @@ resource functionApp 'Microsoft.Web/sites@2022-09-01' = {
       ]
       netFrameworkVersion: 'v6.0'
       ftpsState: 'Disabled'
-      minTlsVersion: '1.2'
-      scmMinTlsVersion: '1.2'
+      minTlsVersion: '1.3'
+      minTlsCipherSuite: 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256'
+      scmMinTlsVersion: '1.3'
     }
   }
 }
